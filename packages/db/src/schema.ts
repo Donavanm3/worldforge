@@ -21,14 +21,32 @@ export type Geometry = ColumnType<string, string, string>;
 // keep importing them alongside the table types.
 export type {
   AccessSource,
+  EmploymentStatus,
   GameStatus,
+  Industry,
+  ItemKind,
   LandZoning,
+  OrderSide,
+  OrderStatus,
   PaymentStatus,
+  ProductionStatus,
   UserRole,
   UserStatus,
 } from '@wf/shared';
 
-import type { AccessSource, LandZoning, PaymentStatus, UserRole, UserStatus } from '@wf/shared';
+import type {
+  AccessSource,
+  EmploymentStatus,
+  Industry,
+  ItemKind,
+  LandZoning,
+  OrderSide,
+  OrderStatus,
+  PaymentStatus,
+  ProductionStatus,
+  UserRole,
+  UserStatus,
+} from '@wf/shared';
 
 export interface UsersTable {
   id: Generated<string>;
@@ -200,6 +218,114 @@ export interface GameSettingsTable {
   updated_at: Generated<Timestamp>;
 }
 
+// --- Phase 2: companies and the production economy ---
+
+export interface ItemsTable {
+  id: Generated<string>;
+  slug: string;
+  name: string;
+  kind: ItemKind;
+  unit: Generated<string>;
+  base_price: Numeric;
+  tier: Generated<number>;
+  created_at: Generated<Timestamp>;
+}
+
+export interface RecipesTable {
+  id: Generated<string>;
+  output_item_id: string;
+  output_quantity: Numeric;
+  labour_hours: Numeric;
+  industry: Industry;
+  created_at: Generated<Timestamp>;
+}
+
+export interface RecipeInputsTable {
+  recipe_id: string;
+  item_id: string;
+  quantity: Numeric;
+}
+
+export interface CompaniesTable {
+  id: Generated<string>;
+  name: string;
+  owner_id: string;
+  industry: Industry;
+  headquarters_parcel_id: string | null;
+  cash: Generated<Numeric>;
+  reputation: Generated<number>;
+  description: string | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface InventoryTable {
+  company_id: string;
+  item_id: string;
+  quantity: Generated<Numeric>;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface ProductionOrdersTable {
+  id: Generated<string>;
+  company_id: string;
+  recipe_id: string;
+  batches: number;
+  status: Generated<ProductionStatus>;
+  labour_cost: Generated<Numeric>;
+  started_at: Generated<Timestamp>;
+  completes_at: Timestamp;
+  collected_at: Timestamp | null;
+}
+
+export interface JobListingsTable {
+  id: Generated<string>;
+  company_id: string;
+  title: string;
+  salary: Numeric;
+  positions: Generated<number>;
+  filled: Generated<number>;
+  open: Generated<boolean>;
+  created_at: Generated<Timestamp>;
+}
+
+export interface EmploymentsTable {
+  id: Generated<string>;
+  user_id: string;
+  company_id: string;
+  listing_id: string | null;
+  title: string;
+  salary: Numeric;
+  status: Generated<EmploymentStatus>;
+  started_at: Generated<Timestamp>;
+  ended_at: Timestamp | null;
+}
+
+export interface MarketOrdersTable {
+  id: Generated<string>;
+  company_id: string;
+  item_id: string;
+  side: OrderSide;
+  quantity: Numeric;
+  remaining: Numeric;
+  price: Numeric;
+  status: Generated<OrderStatus>;
+  created_at: Generated<Timestamp>;
+  closed_at: Timestamp | null;
+}
+
+export interface MarketTradesTable {
+  id: Generated<string>;
+  item_id: string;
+  buy_order_id: string;
+  sell_order_id: string;
+  buyer_company_id: string;
+  seller_company_id: string;
+  quantity: Numeric;
+  price: Numeric;
+  created_at: Generated<Timestamp>;
+}
+
 export interface Database {
   users: UsersTable;
   profiles: ProfilesTable;
@@ -214,6 +340,16 @@ export interface Database {
   admin_actions: AdminActionsTable;
   notifications: NotificationsTable;
   game_settings: GameSettingsTable;
+  items: ItemsTable;
+  recipes: RecipesTable;
+  recipe_inputs: RecipeInputsTable;
+  companies: CompaniesTable;
+  inventory: InventoryTable;
+  production_orders: ProductionOrdersTable;
+  job_listings: JobListingsTable;
+  employments: EmploymentsTable;
+  market_orders: MarketOrdersTable;
+  market_trades: MarketTradesTable;
 }
 
 export type User = Selectable<UsersTable>;
@@ -233,3 +369,12 @@ export type Transaction = Selectable<TransactionsTable>;
 export type NewTransaction = Insertable<TransactionsTable>;
 
 export type GameSetting = Selectable<GameSettingsTable>;
+
+export type Item = Selectable<ItemsTable>;
+export type Company = Selectable<CompaniesTable>;
+export type NewCompany = Insertable<CompaniesTable>;
+export type Recipe = Selectable<RecipesTable>;
+export type MarketOrder = Selectable<MarketOrdersTable>;
+export type MarketTrade = Selectable<MarketTradesTable>;
+export type Employment = Selectable<EmploymentsTable>;
+export type ProductionOrder = Selectable<ProductionOrdersTable>;

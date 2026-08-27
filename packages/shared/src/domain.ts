@@ -38,3 +38,58 @@ export interface BoundingBox {
   east: number;
   north: number;
 }
+
+// --- Phase 2: companies and the production economy ---
+
+export type Industry =
+  | 'agriculture'
+  | 'mining'
+  | 'oil_and_gas'
+  | 'energy'
+  | 'manufacturing'
+  | 'construction'
+  | 'transportation'
+  | 'logistics'
+  | 'retail'
+  | 'restaurants'
+  | 'finance'
+  | 'technology'
+  | 'software'
+  | 'telecommunications'
+  | 'healthcare'
+  | 'entertainment'
+  | 'media'
+  | 'real_estate';
+
+export const INDUSTRIES: readonly Industry[] = [
+  'agriculture',
+  'mining',
+  'oil_and_gas',
+  'energy',
+  'manufacturing',
+  'construction',
+  'transportation',
+  'logistics',
+  'retail',
+  'restaurants',
+  'finance',
+  'technology',
+  'software',
+  'telecommunications',
+  'healthcare',
+  'entertainment',
+  'media',
+  'real_estate',
+];
+
+/**
+ * Resources and products are the same thing to inventory, recipes and the
+ * market — only their origin differs. Modelling them as one `items` table with
+ * a kind discriminator avoids duplicating every one of those systems.
+ */
+export type ItemKind = 'resource' | 'product';
+
+export type OrderSide = 'buy' | 'sell';
+export type OrderStatus = 'open' | 'filled' | 'cancelled';
+export type ProductionStatus = 'running' | 'completed' | 'cancelled';
+export type EmploymentStatus = 'active' | 'resigned' | 'terminated';

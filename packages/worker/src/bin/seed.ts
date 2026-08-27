@@ -1,4 +1,5 @@
 import { createDb } from '@wf/db';
+import { seedCatalog } from '../seed/catalog.js';
 import { seedWorld } from '../seed/world.js';
 
 /** CLI entrypoint: `pnpm seed`. */
@@ -12,6 +13,10 @@ async function main(): Promise<void> {
 
   const db = createDb({ connectionString });
   try {
+    console.log('Seeding item catalogue...');
+    const catalog = await seedCatalog(db);
+    console.log(`  ${catalog.items} items, ${catalog.recipes} recipes`);
+
     console.log('Seeding starter world...');
     const summary = await seedWorld(db);
     console.log(

@@ -9,3 +9,22 @@ export {
   valueParcel,
   type ParcelValuationInputs,
 } from './land.js';
+
+export {
+  matchOrder,
+  maxBuyCost,
+  scaledToString,
+  sortBook,
+  stringToScaled,
+  type BookOrder,
+  type Fill,
+  type MatchResult,
+} from './market.js';
+
+export {
+  DEFAULT_LABOUR_RATE,
+  planProduction,
+  unitCostFloor,
+  type ProductionPlan,
+  type RecipeSpec,
+} from './production.js';
