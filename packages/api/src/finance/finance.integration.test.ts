@@ -516,6 +516,33 @@ describe.runIf(shouldRun)('finance and the economy tick (integration)', () => {
 
   // --- the economy tick ---
 
+  it('gives new items an opening price and never resets live ones on re-seed', async () => {
+    const steelId = itemIds['steel']!;
+    await db
+      .updateTable('items')
+      .set({ market_price: sql`999::numeric` })
+      .where('id', '=', steelId)
+      .execute();
+
+    // Re-seeding revises the catalogue; it must not wipe out the price the
+    // economy has discovered.
+    await seedCatalog(db);
+
+    const after = await db
+      .selectFrom('items')
+      .select(['market_price', 'base_price'])
+      .where('id', '=', steelId)
+      .executeTakeFirstOrThrow();
+    expect(Number(after.market_price)).toBeCloseTo(999, 4);
+
+    const anyNull = await db
+      .selectFrom('items')
+      .select('id')
+      .where('market_price', 'is', null)
+      .execute();
+    expect(anyNull).toHaveLength(0);
+  });
+
   it('records every tick so a stalled scheduler is visible', async () => {
     await runEconomyTick(db);
     const runs = await db.selectFrom('tick_runs').selectAll().execute();

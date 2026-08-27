@@ -1,3 +1,4 @@
+import { sql } from 'kysely';
 import type { Db } from '@wf/db';
 import type { Industry, ItemKind } from '@wf/shared';
 
@@ -232,6 +233,10 @@ export async function seedCatalog(db: Db): Promise<CatalogSummary> {
         kind: item.kind,
         unit: item.unit,
         base_price: item.basePrice,
+        // A new item enters the market at its base price. Deliberately absent
+        // from the conflict clause below: re-seeding must not reset the live
+        // price and wipe out whatever the economy has discovered.
+        market_price: sql`${item.basePrice}::numeric`,
         tier: item.tier,
       })
       .onConflict((oc) =>
