@@ -11,6 +11,11 @@ dist/
 coverage/
 .vitest/
 
+# --- Backups ---
+# Database dumps contain every player's data. Never commit them.
+backups/
+*.sql.gz
+
 # --- Secrets ---
 # .env.example is committed as the template; real env files never are.
 .env

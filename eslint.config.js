@@ -14,6 +14,21 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    // PM2 loads its ecosystem file as CommonJS, so these globals are real here.
+    files: ['**/*.cjs'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        module: 'readonly',
+        require: 'readonly',
+        exports: 'writable',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        process: 'readonly',
+      },
+    },
+  },
+  {
     rules: {
       // Underscore prefix marks a parameter that exists to satisfy a signature.
       '@typescript-eslint/no-unused-vars': [

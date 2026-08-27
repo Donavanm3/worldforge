@@ -18,14 +18,39 @@ types.setTypeParser(types.builtins.INT8, (value) => value);
 export interface DbConfig {
   connectionString: string;
   maxConnections?: number;
+  /** Overrides the sslmode inferred from the connection string. */
   ssl?: boolean;
 }
 
+/**
+ * Derives TLS settings from the connection string, following libpq's sslmode
+ * semantics: `require` encrypts without verifying the certificate chain, while
+ * `verify-ca` and `verify-full` demand a trusted chain.
+ *
+ * Managed providers (Neon, Supabase, RDS) hand out `?sslmode=require` URLs, and
+ * without this the connection is refused.
+ */
+function sslFromConnectionString(connectionString: string): pg.PoolConfig['ssl'] {
+  const match = /[?&]sslmode=([a-z-]+)/i.exec(connectionString);
+  const mode = match?.[1]?.toLowerCase();
+
+  if (!mode || mode === 'disable' || mode === 'allow' || mode === 'prefer') return undefined;
+  if (mode === 'verify-ca' || mode === 'verify-full') return { rejectUnauthorized: true };
+  return { rejectUnauthorized: false };
+}
+
 export function createPool(config: DbConfig): pg.Pool {
+  const ssl =
+    config.ssl === undefined
+      ? sslFromConnectionString(config.connectionString)
+      : config.ssl
+        ? { rejectUnauthorized: false }
+        : undefined;
+
   return new Pool({
     connectionString: config.connectionString,
     max: config.maxConnections ?? 10,
-    ssl: config.ssl === true ? { rejectUnauthorized: false } : undefined,
+    ssl,
   });
 }
 
