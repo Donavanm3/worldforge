@@ -342,6 +342,15 @@ describe.runIf(shouldRun)('admin controls (integration)', () => {
     await sql`truncate table payment_events, admin_actions, notifications, payments, sessions, profiles, users restart identity cascade`.execute(
       db,
     );
+    // This suite flips game status and price. game_settings survives the
+    // truncate above, so restore the migration's defaults or the mutation
+    // leaks into whichever suite runs next.
+    await sql`
+      update game_settings set value = 'BETA' where key = 'GAME_STATUS';
+      update game_settings set value = '3.00' where key = 'BETA_PRICE';
+      update game_settings set value = 'true' where key = 'BETA_PAYMENT_REQUIRED';
+      update game_settings set value = 'true' where key = 'REGISTRATION_ENABLED';
+    `.execute(db);
 
     const admin = await app.inject({
       method: 'POST',

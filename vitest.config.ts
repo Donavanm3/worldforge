@@ -42,6 +42,11 @@ export default defineConfig({
   test: {
     include: ['packages/*/src/**/*.test.ts'],
     environment: 'node',
+    // The integration suites all share one database and truncate tables in
+    // their hooks, so running files in parallel makes them clobber each
+    // other. Sequential is slower but is the only correct option until each
+    // suite gets its own schema.
+    fileParallelism: false,
     // The integration suites migrate a real database on first use.
     testTimeout: 30_000,
     hookTimeout: 90_000,

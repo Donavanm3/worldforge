@@ -60,6 +60,11 @@ describe.runIf(shouldRun)('land (integration)', () => {
           password: 'a-sufficiently-long-password',
         },
       });
+      if (response.statusCode !== 201) {
+        // Surface the server's actual reply; otherwise a failed registration
+        // shows up as "cannot read properties of undefined".
+        throw new Error(`register ${username} failed: ${response.statusCode} ${response.body}`);
+      }
       const body = response.json();
       // Land requires world access; grant it directly rather than paying.
       await db
