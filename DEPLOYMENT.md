@@ -159,14 +159,16 @@ registration, and switch the game between beta and released.
 
 ## 9. Nightly backups
 
+Install the schedule without opening an editor:
+
 ```bash
-crontab -e
+(crontab -l 2>/dev/null | grep -v deploy/backup.sh; echo "0 3 * * * /home/worldforge/worldforge/deploy/backup.sh >> /home/worldforge/backup.log 2>&1") | crontab -
 ```
 
-Add:
+Confirm it took:
 
-```
-0 3 * * * /home/worldforge/worldforge/deploy/backup.sh >> /home/worldforge/backup.log 2>&1
+```bash
+crontab -l
 ```
 
 Keeps the 14 most recent dumps in `~/worldforge/backups`.
@@ -272,3 +274,100 @@ select provider_event_id, event_type, processed_at, error from payment_events or
 
 The `error` column says why it was refused. Failing that, grant access from
 `/admin`, which records `access_source = 'admin'`.
+
+---
+
+## Using Termius
+
+Every command in this guide is ordinary SSH — Termius runs them unchanged. Three
+of its features are worth setting up, because they turn deploying into a tap.
+
+### Connect with a key, not a password
+
+In **Keychain → New Key → Generate**, make an Ed25519 key. Copy the public half,
+then on the server (while still using password auth):
+
+```bash
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+echo "PASTE_YOUR_TERMIUS_PUBLIC_KEY_HERE" >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
+
+Attach the key to the host in Termius and reconnect. Once that works, turn
+password login off — it is the single biggest thing you can do for the security
+of this box:
+
+```bash
+sudo sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+sudo systemctl reload ssh
+```
+
+Keep your existing session open until you have confirmed a fresh connection
+works, or a typo locks you out.
+
+### Snippets — this is the "easy update" part
+
+Termius Snippets are saved commands you run against a host with one tap, from
+desktop or phone. Create these under **Snippets → New Snippet**:
+
+| Name       | Command                                 |
+| ---------- | --------------------------------------- |
+| Deploy     | `cd ~/worldforge && ./deploy/update.sh` |
+| Status     | `pm2 status`                            |
+| API logs   | `pm2 logs wf-api --lines 80`            |
+| Tick logs  | `pm2 logs wf-tick --lines 40`           |
+| Health     | `curl -s localhost:3001/api/health`     |
+| Backup now | `cd ~/worldforge && ./deploy/backup.sh` |
+
+One more worth saving, too long for the table above — it shows whether the
+economy tick is actually running:
+
+```bash
+cd ~/worldforge && psql "$(grep ^DATABASE_URL .env | cut -d= -f2-)" -c "select kind, started_at, finished_at, error from tick_runs order by started_at desc limit 10"
+```
+
+After that, shipping a change is: push from your machine, open Termius, tap
+**Deploy**. The script does the rest and tells you if the health check fails.
+
+### SFTP for `.env` and backups
+
+Editing `.env` in nano over a phone keyboard is miserable. Termius has a built-in
+SFTP browser — open the host's file manager, navigate to
+`/home/worldforge/worldforge/.env`, and edit it in a real text field.
+
+The same browser is how you pull backups off the server. Do that periodically:
+a disk failure that takes the game also takes any backups sitting beside it.
+
+After editing `.env`, reload so the processes pick it up:
+
+```bash
+pm2 reload ecosystem.config.cjs --update-env
+```
+
+### Port forwarding for database access
+
+To use a desktop SQL client against the server's Postgres without exposing it to
+the internet, add a **Port Forwarding** rule in Termius:
+
+- Type: **Local**
+- Local port: `55432`
+- Destination host: `localhost`
+- Destination port: `5432`
+
+Connect to `localhost:55432` from your SQL client. The traffic rides your SSH
+session, so the firewall rule keeping Postgres on loopback stays intact — do not
+open 5432 to the world to save yourself this step.
+
+### One caution about deploying from a phone
+
+`update.sh` runs a build, which takes a minute or two. If Termius drops the
+connection mid-run, the script dies partway — possibly after migrating but
+before reloading. It is safe to simply run **Deploy** again; the script is
+idempotent. But on a flaky connection, prefer:
+
+```bash
+cd ~/worldforge && tmux new -As deploy './deploy/update.sh'
+```
+
+That keeps it running server-side even if your phone disconnects. Reattach with
+`tmux attach -t deploy`. Install it once with `sudo apt-get install -y tmux`.
