@@ -46,8 +46,8 @@ const WORLD: CountrySeed[] = [
     regionName: 'Northern Reach',
     regionCode: 'AST-NR',
     cities: [
-      { name: 'Port Aurelia', lat: 45.2, lng: -12.4, population: 1_850_000, baseRatePerSqm: 9.5 },
-      { name: 'Kestrel Bay', lat: 46.1, lng: -11.7, population: 620_000, baseRatePerSqm: 6.2 },
+      { name: 'Port Aurelia', lat: 45.2, lng: -12.4, population: 1_850_000, baseRatePerSqm: 0.95 },
+      { name: 'Kestrel Bay', lat: 46.1, lng: -11.7, population: 620_000, baseRatePerSqm: 0.62 },
     ],
   },
   {
@@ -56,8 +56,8 @@ const WORLD: CountrySeed[] = [
     regionName: 'Green Belt',
     regionCode: 'VRD-GB',
     cities: [
-      { name: 'Thornfield', lat: 38.7, lng: 4.3, population: 2_400_000, baseRatePerSqm: 11.0 },
-      { name: 'Millbrook', lat: 39.4, lng: 5.1, population: 430_000, baseRatePerSqm: 5.4 },
+      { name: 'Thornfield', lat: 38.7, lng: 4.3, population: 2_400_000, baseRatePerSqm: 1.1 },
+      { name: 'Millbrook', lat: 39.4, lng: 5.1, population: 430_000, baseRatePerSqm: 0.54 },
     ],
   },
   {
@@ -66,8 +66,8 @@ const WORLD: CountrySeed[] = [
     regionName: 'Sunward Coast',
     regionCode: 'SOL-SC',
     cities: [
-      { name: 'Calanque', lat: 31.8, lng: 18.9, population: 3_100_000, baseRatePerSqm: 13.5 },
-      { name: 'Vireau', lat: 32.5, lng: 19.6, population: 780_000, baseRatePerSqm: 7.1 },
+      { name: 'Calanque', lat: 31.8, lng: 18.9, population: 3_100_000, baseRatePerSqm: 1.35 },
+      { name: 'Vireau', lat: 32.5, lng: 19.6, population: 780_000, baseRatePerSqm: 0.71 },
     ],
   },
   {
@@ -76,8 +76,8 @@ const WORLD: CountrySeed[] = [
     regionName: 'Iron Fjords',
     regionCode: 'NOR-IF',
     cities: [
-      { name: 'Steinvik', lat: 59.3, lng: 8.7, population: 940_000, baseRatePerSqm: 7.8 },
-      { name: 'Haldsund', lat: 60.1, lng: 9.4, population: 310_000, baseRatePerSqm: 4.6 },
+      { name: 'Steinvik', lat: 59.3, lng: 8.7, population: 940_000, baseRatePerSqm: 0.78 },
+      { name: 'Haldsund', lat: 60.1, lng: 9.4, population: 310_000, baseRatePerSqm: 0.46 },
     ],
   },
   {
@@ -86,8 +86,8 @@ const WORLD: CountrySeed[] = [
     regionName: 'Central Plateau',
     regionCode: 'MER-CP',
     cities: [
-      { name: 'Ashgate', lat: -14.2, lng: 27.5, population: 1_200_000, baseRatePerSqm: 8.3 },
-      { name: 'Duneford', lat: -13.5, lng: 28.2, population: 505_000, baseRatePerSqm: 5.9 },
+      { name: 'Ashgate', lat: -14.2, lng: 27.5, population: 1_200_000, baseRatePerSqm: 0.83 },
+      { name: 'Duneford', lat: -13.5, lng: 28.2, population: 505_000, baseRatePerSqm: 0.59 },
     ],
   },
 ];
@@ -190,7 +190,10 @@ export async function seedWorld(db: Db, options: SeedOptions = {}): Promise<Seed
         const columns = Math.ceil(Math.sqrt(parcelsPerCity));
         const col = i % columns;
         const row = Math.floor(i / columns);
-        const size = 0.004; // ~440 m at the equator
+        // ~44 m at the equator, so a parcel is a city lot of roughly
+        // 800-1600 m². Larger blocks priced per m² put every parcel far
+        // beyond the 10,000 starting balance.
+        const size = 0.0004;
 
         const west = city.lng + (col - columns / 2) * size;
         const south = city.lat + (row - columns / 2) * size;

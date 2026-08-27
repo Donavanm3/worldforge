@@ -114,6 +114,20 @@ describe.runIf(shouldRun)('land (integration)', () => {
     }
   });
 
+  it('seeds land a new player can actually afford', async () => {
+    // The starter flow depends on this: a player begins with 10,000 and is
+    // told to buy land. Parcels were originally 12-hectare blocks priced per
+    // m², which put the cheapest one at ~442,000 and made step one impossible.
+    const cheapest = await db
+      .selectFrom('land_parcels')
+      .select(['sale_price'])
+      .where('for_sale', '=', true)
+      .orderBy('sale_price', 'asc')
+      .executeTakeFirstOrThrow();
+
+    expect(Number(cheapest.sale_price)).toBeLessThan(Number(await balanceOf(buyerId)));
+  });
+
   it('refuses to seed a world twice', async () => {
     await expect(seedWorld(db, { parcelsPerCity: 1 })).rejects.toThrow(/already contains/i);
   });
