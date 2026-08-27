@@ -208,14 +208,11 @@ export async function placeOrder(
         .execute();
     }
 
-    // A buyer who crossed below their limit gets the difference back.
-    if (input.side === 'buy' && match.fills.length > 0) {
-      const reservedForFills = maxBuyCost(match.filledQuantity, input.price);
-      const refund = Number(reservedForFills) - Number(match.totalValue);
-      if (refund > 0) {
-        await giveCash(trx, input.companyId, refund.toFixed(4));
-      }
-    }
+    // No refund step here, deliberately. The reservation above is already
+    // exact — fills are charged at their actual value and only the resting
+    // remainder is escrowed at the limit price. An earlier version also
+    // refunded the difference between the limit and the fill price, which
+    // minted money on every buy that crossed below its limit.
 
     return {
       orderId: order.id,

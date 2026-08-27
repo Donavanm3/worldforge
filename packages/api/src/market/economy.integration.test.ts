@@ -353,6 +353,18 @@ describe.runIf(shouldRun)('economy (integration)', () => {
     expect(await cashOf(bobCo)).toBeCloseTo(buyerBefore - 500, 4);
   });
 
+  it('creates no money when a buy crosses below its limit', async () => {
+    // The dangerous case: buyer bids 60, book offers 50. Refunding the 10
+    // spread on top of an already-exact charge mints money out of nothing.
+    await grantStock(aliceCo, 'steel', '20');
+    await placeOrder(aliceToken, aliceCo, 'steel', 'sell', '20', '50');
+
+    const totalBefore = (await cashOf(aliceCo)) + (await cashOf(bobCo));
+    await placeOrder(bobToken, bobCo, 'steel', 'buy', '20', '60');
+
+    expect((await cashOf(aliceCo)) + (await cashOf(bobCo))).toBeCloseTo(totalBefore, 4);
+  });
+
   it('conserves value across a trade', async () => {
     await grantStock(aliceCo, 'steel', '50');
     const totalBefore = (await cashOf(aliceCo)) + (await cashOf(bobCo));
