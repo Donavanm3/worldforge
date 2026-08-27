@@ -1,0 +1,10 @@
+# Normalise line endings: the repo stores LF, Windows checkouts get CRLF.
+# Keeps Prettier's LF expectation satisfied on Linux CI regardless of who commits.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+pnpm-lock.yaml -diff linguist-generated

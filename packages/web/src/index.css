@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* MapLibre draws its own controls; keep them legible on the dark shell. */
+.maplibregl-ctrl-group {
+  background: #1b2436;
+}
+.maplibregl-ctrl-group button + button {
+  border-top-color: #273449;
+}
+.maplibregl-ctrl-attrib {
+  background: rgba(11, 17, 32, 0.8);
+}
+.maplibregl-ctrl-attrib a {
+  color: #94a3b8;
+}

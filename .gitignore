@@ -1,0 +1,29 @@
+# --- Unity projects ---
+# Two unrelated Unity projects share this folder with the WorldForge monorepo.
+# They are not part of this repository.
+Freight Empire/
+captial rift style game/
+
+# --- Dependencies & build output ---
+node_modules/
+dist/
+*.tsbuildinfo
+coverage/
+.vitest/
+
+# --- Secrets ---
+# .env.example is committed as the template; real env files never are.
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# --- Local tooling state ---
+.claude/settings.local.json
+
+# --- Editor / OS ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

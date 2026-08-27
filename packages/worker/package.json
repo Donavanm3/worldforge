@@ -1,0 +1,24 @@
+{
+  "name": "@wf/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "seed": "node dist/bin/seed.js"
+  },
+  "dependencies": {
+    "@wf/db": "workspace:*",
+    "@wf/engine": "workspace:*",
+    "@wf/shared": "workspace:*",
+    "kysely": "^0.27.5"
+  }
+}

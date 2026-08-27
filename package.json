@@ -1,0 +1,36 @@
+{
+  "name": "wf-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -b && pnpm --filter @wf/web run build",
+    "clean": "tsc -b --clean",
+    "typecheck": "tsc -b && pnpm --filter @wf/web exec tsc --noEmit",
+    "test": "vitest run",
+    "start": "node --env-file-if-exists=.env packages/api/dist/bin/serve.js",
+    "migrate": "pnpm --filter @wf/db run build && node --env-file-if-exists=.env packages/db/dist/bin/migrate.js",
+    "migrate:down": "pnpm --filter @wf/db run build && node --env-file-if-exists=.env packages/db/dist/bin/migrate.js down",
+    "seed": "pnpm --filter @wf/worker run build && node --env-file-if-exists=.env packages/worker/dist/bin/seed.js",
+    "db:up": "docker compose -f docker-compose.dev.yml up -d",
+    "db:down": "docker compose -f docker-compose.dev.yml down",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "dev:web": "pnpm --filter @wf/web run dev"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.2",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.1",
+    "vitest": "^2.1.8"
+  }
+}
