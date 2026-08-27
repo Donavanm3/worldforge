@@ -65,7 +65,7 @@ describe.runIf(shouldRun)('beta payments (integration)', () => {
       REDIS_URL: redisUrl!,
       JWT_SECRET: 'test-secret-that-is-long-enough-for-hs256',
       PUBLIC_URL: 'https://worldforge.test',
-      LOG_LEVEL: 'silent',
+      LOG_LEVEL: 'error',
     });
 
     db = createDb({ connectionString: databaseUrl! });
@@ -82,6 +82,9 @@ describe.runIf(shouldRun)('beta payments (integration)', () => {
   }, 30_000);
 
   beforeEach(async () => {
+    // Rate limits are keyed by IP and every injected request shares one;
+    // clearing the store stops earlier tests exhausting the register bucket.
+    await app.redis.flushdb();
     await sql`truncate table payment_events, admin_actions, notifications, payments, sessions, profiles, users restart identity cascade`.execute(
       db,
     );
@@ -319,7 +322,7 @@ describe.runIf(shouldRun)('admin controls (integration)', () => {
       DATABASE_URL: databaseUrl!,
       REDIS_URL: redisUrl!,
       JWT_SECRET: 'test-secret-that-is-long-enough-for-hs256',
-      LOG_LEVEL: 'silent',
+      LOG_LEVEL: 'error',
     });
 
     db = createDb({ connectionString: databaseUrl! });
@@ -333,6 +336,9 @@ describe.runIf(shouldRun)('admin controls (integration)', () => {
   }, 30_000);
 
   beforeEach(async () => {
+    // Rate limits are keyed by IP and every injected request shares one;
+    // clearing the store stops earlier tests exhausting the register bucket.
+    await app.redis.flushdb();
     await sql`truncate table payment_events, admin_actions, notifications, payments, sessions, profiles, users restart identity cascade`.execute(
       db,
     );

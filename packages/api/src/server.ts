@@ -97,6 +97,10 @@ export async function buildServer(options: BuildServerOptions): Promise<FastifyI
     // Shared across processes so PM2 cluster mode can't multiply the limit.
     redis,
     keyGenerator: (request) => request.ip,
+    // Fail open. Rate limiting is a safeguard, not a dependency: if the store
+    // is unreachable the game must keep serving requests rather than return
+    // 500 for everything, which is what the default (propagate) does.
+    skipOnError: true,
   });
 
   app.setErrorHandler((error: FastifyError, request, reply) => {

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { sql } from 'kysely';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { loadConfig } from '@wf/shared';
 import { createDb, migrateToLatest, type Db } from '@wf/db';
 import { buildServer } from '../server.js';
@@ -28,7 +28,7 @@ describe.runIf(shouldRun)('auth routes (integration)', () => {
       DATABASE_URL: databaseUrl!,
       REDIS_URL: redisUrl!,
       JWT_SECRET: 'test-secret-that-is-long-enough-for-hs256',
-      LOG_LEVEL: 'silent',
+      LOG_LEVEL: 'error',
     });
 
     db = createDb({ connectionString: databaseUrl! });
@@ -44,6 +44,13 @@ describe.runIf(shouldRun)('auth routes (integration)', () => {
   afterAll(async () => {
     await app?.close();
   }, 30_000);
+
+  // Rate limits are keyed by IP and every injected request shares one, so
+  // without clearing the store the suite exhausts the register/login buckets
+  // partway through and later tests fail with 429s.
+  beforeEach(async () => {
+    await app.redis.flushdb();
+  });
 
   it('reports health without exposing internals', async () => {
     const response = await app.inject({ method: 'GET', url: '/api/health' });

@@ -24,7 +24,7 @@ describe.runIf(shouldRun)('land (integration)', () => {
       DATABASE_URL: databaseUrl!,
       REDIS_URL: redisUrl!,
       JWT_SECRET: 'test-secret-that-is-long-enough-for-hs256',
-      LOG_LEVEL: 'silent',
+      LOG_LEVEL: 'error',
     });
 
     db = createDb({ connectionString: databaseUrl! });
@@ -40,6 +40,9 @@ describe.runIf(shouldRun)('land (integration)', () => {
   }, 30_000);
 
   beforeEach(async () => {
+    // Rate limits are keyed by IP and every injected request shares one;
+    // clearing the store stops earlier tests exhausting the register bucket.
+    await app.redis.flushdb();
     await sql`truncate table payment_events, admin_actions, notifications, transactions, payments, sessions, land_parcels, cities, regions, countries, profiles, users restart identity cascade`.execute(
       db,
     );
