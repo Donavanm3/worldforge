@@ -27,8 +27,10 @@ describe('toApiError', () => {
     for (const body of [null, 'Bad Gateway', {}, { error: 'nope' }, 42]) {
       const error = toApiError(502, body);
       expect(error.code).toBe('UNKNOWN');
-      expect(error.message).toBe('Request failed (502)');
+      // A 5xx with no envelope means the API is down, not a player mistake.
+      expect(error.message).toMatch(/not responding/i);
     }
+    expect(toApiError(418, null).message).toBe('Request failed (418)');
   });
 
   it('identifies the beta paywall', () => {

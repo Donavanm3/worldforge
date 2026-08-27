@@ -56,5 +56,12 @@ export function toApiError(status: number, body: unknown): ApiError {
     );
   }
 
-  return new ApiError(status, 'UNKNOWN', `Request failed (${status})`);
+  // No usable envelope. A 5xx here almost always means the API is down or
+  // restarting rather than that the player did something wrong, so say so.
+  const message =
+    status >= 500
+      ? 'The WorldForge server is not responding. It may be offline or restarting.'
+      : `Request failed (${status})`;
+
+  return new ApiError(status, 'UNKNOWN', message);
 }

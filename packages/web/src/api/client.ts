@@ -1,4 +1,4 @@
-import { toApiError } from './errors.js';
+import { ApiError, toApiError } from './errors.js';
 import type {
   AuthResponse,
   Company,
@@ -123,7 +123,15 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     });
   };
 
-  let response = await send();
+  let response: Response;
+  try {
+    response = await send();
+  } catch {
+    // fetch rejects outright when the server is unreachable. Surface that as
+    // an ApiError so callers get one error type and an actionable message,
+    // rather than a bare TypeError and a generic "something went wrong".
+    throw new ApiError(0, 'NETWORK_ERROR', 'Cannot reach the WorldForge server.');
+  }
 
   // A short-lived access token expiring mid-session is normal; rotate and
   // replay once rather than bouncing the player to the login screen.
@@ -136,10 +144,24 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   const text = await response.text();
-  const payload = text ? (JSON.parse(text) as unknown) : null;
+
+  // A proxy error page, a gateway timeout or an empty body are all non-JSON.
+  // Parsing must never throw past this point: toApiError falls back to a
+  // status-based message, which is far more useful than a SyntaxError.
+  let payload: unknown = null;
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = null;
+    }
+  }
 
   if (!response.ok) {
     throw toApiError(response.status, payload);
+  }
+  if (payload === null && text) {
+    throw new ApiError(response.status, 'BAD_RESPONSE', 'The server returned an unreadable reply.');
   }
   return payload as T;
 }
