@@ -9,6 +9,9 @@ import { BetaAccessPage, BetaSuccessPage } from './pages/BetaAccessPage.js';
 import { BetaPage } from './pages/BetaPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { LandPage } from './pages/LandPage.js';
+import { CompaniesPage } from './pages/CompaniesPage.js';
+import { MarketsPage } from './pages/MarketsPage.js';
+import { JobsPage } from './pages/JobsPage.js';
 import { LoginPage, RegisterPage } from './pages/AuthPages.js';
 
 // MapLibre is ~700 kB and is only needed on the map route, so it loads on
@@ -105,23 +108,10 @@ export function App() {
               }
             />
             <Route path="/land" element={<LandPage />} />
+            <Route path="/markets" element={<MarketsPage />} />
+            <Route path="/companies" element={<CompaniesPage />} />
+            <Route path="/jobs" element={<JobsPage />} />
             {/* Specified but not built — never a dead link (spec 85). */}
-            <Route
-              path="/markets"
-              element={
-                <div className="mx-auto max-w-4xl px-4 py-10">
-                  <ComingSoon feature="Markets, the stock exchange and banking" />
-                </div>
-              }
-            />
-            <Route
-              path="/companies"
-              element={
-                <div className="mx-auto max-w-4xl px-4 py-10">
-                  <ComingSoon feature="Company creation, employment and production" />
-                </div>
-              }
-            />
             <Route
               path="/government"
               element={

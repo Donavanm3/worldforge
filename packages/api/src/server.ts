@@ -10,6 +10,7 @@ import { healthRoutes } from './routes/health.js';
 import { betaRoutes } from './routes/beta.js';
 import { landRoutes } from './routes/land.js';
 import { economyRoutes } from './routes/economy.js';
+import { financeRoutes } from './routes/finance.js';
 import { adminRoutes } from './routes/admin.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import type { PaymentProvider } from './payments/provider.js';
@@ -149,6 +150,7 @@ export async function buildServer(options: BuildServerOptions): Promise<FastifyI
       await api.register(betaRoutes);
       await api.register(landRoutes);
       await api.register(economyRoutes);
+      await api.register(financeRoutes);
       await api.register(adminRoutes);
       // Registered last and in its own scope so its raw-body parser stays
       // isolated from the JSON routes above.

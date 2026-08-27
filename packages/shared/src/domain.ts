@@ -93,3 +93,20 @@ export type OrderSide = 'buy' | 'sell';
 export type OrderStatus = 'open' | 'filled' | 'cancelled';
 export type ProductionStatus = 'running' | 'completed' | 'cancelled';
 export type EmploymentStatus = 'active' | 'resigned' | 'terminated';
+
+// --- Phase 3: finance and the dynamic economy ---
+
+export type LoanStatus = 'active' | 'repaid' | 'defaulted';
+export type BondStatus = 'open' | 'active' | 'matured' | 'defaulted';
+
+/** A company's shares are either privately held or listed for public trading. */
+export type ListingStatus = 'private' | 'listed';
+
+export interface PriceSignal {
+  /** Units offered on the book. */
+  supply: number;
+  /** Units bid for on the book. */
+  demand: number;
+  /** Units actually traded in the window. */
+  volume: number;
+}

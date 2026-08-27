@@ -149,3 +149,145 @@ export interface PaymentsDashboard {
     completed_at: string | null;
   }>;
 }
+
+// --- Phase 2: companies and the production economy ---
+
+export interface Item {
+  id: string;
+  slug: string;
+  name: string;
+  kind: 'resource' | 'product';
+  unit: string;
+  base_price: string;
+  tier: number;
+}
+
+export interface Company {
+  id: string;
+  name: string;
+  owner_id: string;
+  industry: string;
+  cash: string;
+  reputation: number;
+  description: string | null;
+  created_at: string;
+  owner_name?: string;
+}
+
+export interface InventoryRow {
+  item_id: string;
+  quantity: string;
+  slug: string;
+  name: string;
+  kind: 'resource' | 'product';
+  unit: string;
+  base_price: string;
+}
+
+export interface RecipeInput {
+  recipe_id: string;
+  item_id: string;
+  quantity: string;
+  item_name: string;
+  item_slug: string;
+}
+
+export interface Recipe {
+  id: string;
+  output_item_id: string;
+  output_quantity: string;
+  labour_hours: string;
+  industry: string;
+  output_name: string;
+  output_slug: string;
+  output_base_price: string;
+  inputs: RecipeInput[];
+}
+
+export interface ProductionRun {
+  id: string;
+  batches: number;
+  status: 'running' | 'completed' | 'cancelled';
+  labour_cost: string;
+  started_at: string;
+  completes_at: string;
+  output_name: string;
+  output_quantity: string;
+}
+
+export interface OrderBookEntry {
+  id: string;
+  side: 'buy' | 'sell';
+  price: string;
+  remaining: string;
+  created_at: string;
+}
+
+export interface OrderBook {
+  bids: OrderBookEntry[];
+  asks: OrderBookEntry[];
+}
+
+export interface MarketTrade {
+  id: string;
+  quantity: string;
+  price: string;
+  created_at: string;
+}
+
+export interface CompanyOrder {
+  id: string;
+  side: 'buy' | 'sell';
+  quantity: string;
+  remaining: string;
+  price: string;
+  status: 'open' | 'filled' | 'cancelled';
+  created_at: string;
+  item_name: string;
+  item_slug: string;
+}
+
+export interface PlaceOrderResult {
+  orderId: string;
+  status: 'open' | 'filled';
+  filledQuantity: string;
+  remainingQuantity: string;
+  totalValue: string;
+  trades: Array<{ quantity: string; price: string }>;
+}
+
+export interface JobListing {
+  id: string;
+  title: string;
+  salary: string;
+  positions: number;
+  filled: number;
+  created_at: string;
+  company_id: string;
+  company_name: string;
+  industry: string;
+}
+
+export interface MyEmployment {
+  id: string;
+  title: string;
+  salary: string;
+  started_at: string;
+  company_id: string;
+  company_name: string;
+  industry: string;
+}
+
+export interface Employee {
+  id: string;
+  title: string;
+  salary: string;
+  started_at: string;
+  username: string;
+}
+
+export interface PayrollResult {
+  paid: number;
+  unpaid: number;
+  total: string;
+}

@@ -13,7 +13,8 @@
   },
   "scripts": {
     "build": "tsc -b",
-    "seed": "node dist/bin/seed.js"
+    "seed": "node dist/bin/seed.js",
+    "tick": "node dist/bin/tick.js"
   },
   "dependencies": {
     "@wf/db": "workspace:*",

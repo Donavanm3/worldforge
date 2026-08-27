@@ -1,6 +1,19 @@
 import { toApiError } from './errors.js';
 import type {
   AuthResponse,
+  Company,
+  CompanyOrder,
+  Employee,
+  InventoryRow,
+  Item,
+  JobListing,
+  MarketTrade,
+  MyEmployment,
+  OrderBook,
+  PayrollResult,
+  PlaceOrderResult,
+  ProductionRun,
+  Recipe,
   BetaAccessResponse,
   BetaStatus,
   GameSettings,
@@ -173,6 +186,65 @@ export const api = {
   listParcel: (id: string, price: string) =>
     request<void>(`/land/parcels/${id}/list`, { method: 'POST', body: { price } }),
   unlistParcel: (id: string) => request<void>(`/land/parcels/${id}/list`, { method: 'DELETE' }),
+
+  // --- economy: catalogue ---
+  items: () => request<Item[]>('/items'),
+  recipes: () => request<Recipe[]>('/recipes'),
+
+  // --- economy: companies ---
+  companies: () => request<Company[]>('/companies'),
+  myCompanies: () => request<Company[]>('/companies/mine'),
+  company: (id: string) => request<Company>(`/companies/${id}`),
+  createCompany: (input: {
+    name: string;
+    industry: string;
+    description?: string;
+    initialCapital?: string;
+  }) => request<Company>('/companies', { method: 'POST', body: input }),
+  companyInventory: (id: string) => request<InventoryRow[]>(`/companies/${id}/inventory`),
+  treasury: (id: string, direction: 'deposit' | 'withdraw', amount: string) =>
+    request<{ balance: string; cash: string }>(`/companies/${id}/treasury`, {
+      method: 'POST',
+      body: { direction, amount },
+    }),
+
+  // --- economy: production ---
+  production: (companyId: string) => request<ProductionRun[]>(`/companies/${companyId}/production`),
+  startProduction: (companyId: string, recipeId: string, batches: number) =>
+    request<{ orderId: string; completesAt: string; labourCost: string }>(
+      `/companies/${companyId}/production`,
+      { method: 'POST', body: { recipeId, batches } },
+    ),
+
+  // --- economy: market ---
+  orderBook: (itemId: string) => request<OrderBook>(`/market/items/${itemId}/book`),
+  itemTrades: (itemId: string) => request<MarketTrade[]>(`/market/items/${itemId}/trades`),
+  companyOrders: (companyId: string) => request<CompanyOrder[]>(`/companies/${companyId}/orders`),
+  placeOrder: (input: {
+    companyId: string;
+    itemId: string;
+    side: 'buy' | 'sell';
+    quantity: string;
+    price: string;
+  }) => request<PlaceOrderResult>('/market/orders', { method: 'POST', body: input }),
+  cancelOrder: (orderId: string) =>
+    request<void>(`/market/orders/${orderId}`, { method: 'DELETE' }),
+
+  // --- economy: employment ---
+  jobs: () => request<JobListing[]>('/jobs'),
+  myJob: () => request<MyEmployment | null>('/jobs/mine'),
+  applyForJob: (listingId: string) =>
+    request<{ id: string }>(`/jobs/${listingId}/apply`, { method: 'POST' }),
+  resign: () => request<void>('/jobs/resign', { method: 'POST' }),
+  createJobListing: (
+    companyId: string,
+    input: { title: string; salary: string; positions: number },
+  ) => request<JobListing>(`/companies/${companyId}/jobs`, { method: 'POST', body: input }),
+  employees: (companyId: string) => request<Employee[]>(`/companies/${companyId}/employees`),
+  fireEmployee: (companyId: string, employmentId: string) =>
+    request<void>(`/companies/${companyId}/employees/${employmentId}`, { method: 'DELETE' }),
+  runPayroll: (companyId: string) =>
+    request<PayrollResult>(`/companies/${companyId}/payroll`, { method: 'POST' }),
 
   // --- admin ---
   adminSettings: () => request<GameSettings>('/admin/settings'),

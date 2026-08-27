@@ -12,6 +12,7 @@ const NAV = [
   { to: '/land', label: 'Land' },
   { to: '/markets', label: 'Markets' },
   { to: '/companies', label: 'Companies' },
+  { to: '/jobs', label: 'Jobs' },
   { to: '/government', label: 'Government' },
 ];
 

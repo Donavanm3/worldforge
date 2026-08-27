@@ -21,7 +21,10 @@ export type Geometry = ColumnType<string, string, string>;
 // keep importing them alongside the table types.
 export type {
   AccessSource,
+  BondStatus,
   EmploymentStatus,
+  ListingStatus,
+  LoanStatus,
   GameStatus,
   Industry,
   ItemKind,
@@ -36,7 +39,10 @@ export type {
 
 import type {
   AccessSource,
+  BondStatus,
   EmploymentStatus,
+  ListingStatus,
+  LoanStatus,
   Industry,
   ItemKind,
   LandZoning,
@@ -227,6 +233,8 @@ export interface ItemsTable {
   kind: ItemKind;
   unit: Generated<string>;
   base_price: Numeric;
+  /** Live price, recomputed by the economy tick from supply and demand. */
+  market_price: Generated<Numeric>;
   tier: Generated<number>;
   created_at: Generated<Timestamp>;
 }
@@ -255,6 +263,9 @@ export interface CompaniesTable {
   cash: Generated<Numeric>;
   reputation: Generated<number>;
   description: string | null;
+  listing_status: Generated<ListingStatus>;
+  shares_outstanding: Generated<number>;
+  share_price: Numeric | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }
@@ -326,6 +337,91 @@ export interface MarketTradesTable {
   created_at: Generated<Timestamp>;
 }
 
+// --- Phase 3: finance and the dynamic economy ---
+
+export interface PriceHistoryTable {
+  id: Generated<string>;
+  item_id: string;
+  price: Numeric;
+  supply: Generated<Numeric>;
+  demand: Generated<Numeric>;
+  volume: Generated<Numeric>;
+  recorded_at: Generated<Timestamp>;
+}
+
+export interface BanksTable {
+  id: Generated<string>;
+  company_id: string;
+  name: string;
+  deposit_rate: Generated<Numeric>;
+  loan_rate: Generated<Numeric>;
+  reserves: Generated<Numeric>;
+  created_at: Generated<Timestamp>;
+}
+
+export interface LoansTable {
+  id: Generated<string>;
+  bank_id: string;
+  borrower_company_id: string;
+  principal: Numeric;
+  outstanding: Numeric;
+  rate: Numeric;
+  status: Generated<LoanStatus>;
+  opened_at: Generated<Timestamp>;
+  closed_at: Timestamp | null;
+}
+
+export interface ShareholdingsTable {
+  company_id: string;
+  holder_user_id: string;
+  shares: Generated<number>;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface ShareOrdersTable {
+  id: Generated<string>;
+  company_id: string;
+  user_id: string;
+  side: OrderSide;
+  shares: number;
+  remaining: number;
+  price: Numeric;
+  status: Generated<OrderStatus>;
+  created_at: Generated<Timestamp>;
+  closed_at: Timestamp | null;
+}
+
+export interface ShareTradesTable {
+  id: Generated<string>;
+  company_id: string;
+  buyer_user_id: string;
+  seller_user_id: string;
+  shares: number;
+  price: Numeric;
+  created_at: Generated<Timestamp>;
+}
+
+export interface BondsTable {
+  id: Generated<string>;
+  issuer_company_id: string;
+  face_value: Numeric;
+  coupon_rate: Numeric;
+  matures_at: Timestamp;
+  status: Generated<BondStatus>;
+  holder_user_id: string | null;
+  purchased_at: Timestamp | null;
+  created_at: Generated<Timestamp>;
+}
+
+export interface TickRunsTable {
+  id: Generated<string>;
+  kind: string;
+  started_at: Generated<Timestamp>;
+  finished_at: Timestamp | null;
+  details: Generated<unknown>;
+  error: string | null;
+}
+
 export interface Database {
   users: UsersTable;
   profiles: ProfilesTable;
@@ -350,6 +446,14 @@ export interface Database {
   employments: EmploymentsTable;
   market_orders: MarketOrdersTable;
   market_trades: MarketTradesTable;
+  price_history: PriceHistoryTable;
+  banks: BanksTable;
+  loans: LoansTable;
+  shareholdings: ShareholdingsTable;
+  share_orders: ShareOrdersTable;
+  share_trades: ShareTradesTable;
+  bonds: BondsTable;
+  tick_runs: TickRunsTable;
 }
 
 export type User = Selectable<UsersTable>;
@@ -378,3 +482,10 @@ export type MarketOrder = Selectable<MarketOrdersTable>;
 export type MarketTrade = Selectable<MarketTradesTable>;
 export type Employment = Selectable<EmploymentsTable>;
 export type ProductionOrder = Selectable<ProductionOrdersTable>;
+
+export type Bank = Selectable<BanksTable>;
+export type Loan = Selectable<LoansTable>;
+export type Bond = Selectable<BondsTable>;
+export type Shareholding = Selectable<ShareholdingsTable>;
+export type ShareOrder = Selectable<ShareOrdersTable>;
+export type PricePoint = Selectable<PriceHistoryTable>;

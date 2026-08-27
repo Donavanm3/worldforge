@@ -2,6 +2,7 @@ import type { Migration, MigrationProvider } from 'kysely';
 import * as initialSchema from './001-initial-schema.js';
 import * as paymentEventsAndAudit from './002-payment-events-and-audit.js';
 import * as companiesAndEconomy from './003-companies-and-economy.js';
+import * as financeAndPrices from './004-finance-and-prices.js';
 
 /**
  * Migrations are registered statically rather than read from disk.
@@ -17,6 +18,7 @@ export const migrations: Record<string, Migration> = {
   '001-initial-schema': initialSchema,
   '002-payment-events-and-audit': paymentEventsAndAudit,
   '003-companies-and-economy': companiesAndEconomy,
+  '004-finance-and-prices': financeAndPrices,
 };
 
 export class StaticMigrationProvider implements MigrationProvider {
