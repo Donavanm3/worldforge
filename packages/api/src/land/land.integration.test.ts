@@ -24,7 +24,7 @@ describe.runIf(shouldRun)('land (integration)', () => {
       DATABASE_URL: databaseUrl!,
       REDIS_URL: redisUrl!,
       JWT_SECRET: 'test-secret-that-is-long-enough-for-hs256',
-      LOG_LEVEL: 'silent' as never,
+      LOG_LEVEL: 'silent',
     });
 
     db = createDb({ connectionString: databaseUrl! });

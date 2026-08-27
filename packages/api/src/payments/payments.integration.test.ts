@@ -65,7 +65,7 @@ describe.runIf(shouldRun)('beta payments (integration)', () => {
       REDIS_URL: redisUrl!,
       JWT_SECRET: 'test-secret-that-is-long-enough-for-hs256',
       PUBLIC_URL: 'https://worldforge.test',
-      LOG_LEVEL: 'silent' as never,
+      LOG_LEVEL: 'silent',
     });
 
     db = createDb({ connectionString: databaseUrl! });
@@ -319,7 +319,7 @@ describe.runIf(shouldRun)('admin controls (integration)', () => {
       DATABASE_URL: databaseUrl!,
       REDIS_URL: redisUrl!,
       JWT_SECRET: 'test-secret-that-is-long-enough-for-hs256',
-      LOG_LEVEL: 'silent' as never,
+      LOG_LEVEL: 'silent',
     });
 
     db = createDb({ connectionString: databaseUrl! });

@@ -32,7 +32,8 @@ const envSchema = z.object({
   PAYMENT_SECRET_KEY: z.string().optional(),
   PAYMENT_WEBHOOK_SECRET: z.string().optional(),
 
-  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+  // 'silent' is a real Pino level; tests use it to keep output readable.
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 });
 
 export type AppConfig = Readonly<z.infer<typeof envSchema>>;
