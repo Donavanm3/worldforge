@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import maplibregl, { type Map as MapLibreMap } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { ApiError, api } from '../api/client.js';
-import type { ParcelCollection, ParcelProperties } from '../api/types.js';
+import type { CitySummary, ParcelCollection, ParcelProperties } from '../api/types.js';
 import { useAuth } from '../auth/AuthContext.js';
 import { Alert, Button } from '../components/ui.js';
 import { formatArea, formatMoney, titleCase } from '../lib/format.js';
@@ -36,6 +36,7 @@ export function MapPage() {
   const [error, setError] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [cities, setCities] = useState<CitySummary[]>([]);
   const { me, refresh } = useAuth();
 
   const loadParcels = useCallback(async () => {
@@ -75,8 +76,10 @@ export function MapPage() {
     const instance = new maplibregl.Map({
       container: container.current,
       style: STYLE,
-      center: [-12.4, 45.2], // Port Aurelia, the first seeded city.
-      zoom: 12,
+      // Manhattan. The jump-to control moves the player anywhere else;
+      // starting zoomed out shows an empty ocean of unseeded land.
+      center: [-74.006, 40.7128],
+      zoom: 14,
     });
     map.current = instance;
     instance.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -133,6 +136,19 @@ export function MapPage() {
     };
   }, [loadParcels]);
 
+  // The city list is small and never changes between deploys, so it is fetched
+  // once rather than kept in sync with the viewport.
+  useEffect(() => {
+    api
+      .cities()
+      .then(setCities)
+      .catch(() => setCities([]));
+  }, []);
+
+  const flyTo = useCallback((city: CitySummary) => {
+    map.current?.flyTo({ center: [city.lng, city.lat], zoom: 15, speed: 2.2 });
+  }, []);
+
   const onBuy = async () => {
     if (!selected) return;
     setBusy(true);
@@ -167,6 +183,35 @@ export function MapPage() {
             <Alert tone="info">Showing the first 500 parcels — zoom in for the full picture.</Alert>
           </div>
         )}
+        {cities.length > 0 && (
+          <div className="pointer-events-auto rounded-md border border-ink-600 bg-ink-800/95 p-3">
+            <label
+              htmlFor="city-jump"
+              className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-400"
+            >
+              Jump to city
+            </label>
+            <select
+              id="city-jump"
+              defaultValue=""
+              onChange={(event) => {
+                const city = cities.find((c) => c.id === event.target.value);
+                if (city) flyTo(city);
+              }}
+              className="w-56 rounded border border-ink-600 bg-ink-900 px-2 py-1.5 text-sm"
+            >
+              <option value="" disabled>
+                Select a city…
+              </option>
+              {cities.map((city) => (
+                <option key={city.id} value={city.id}>
+                  {city.name}, {city.countryCode} — {city.forSaleCount} for sale
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="pointer-events-auto rounded-md border border-ink-600 bg-ink-800/95 p-3 text-xs">
           <div className="mb-1 font-semibold uppercase tracking-widest text-slate-400">Legend</div>
           <div className="flex items-center gap-2">

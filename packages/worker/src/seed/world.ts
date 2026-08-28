@@ -2,6 +2,7 @@ import { sql } from 'kysely';
 import type { Db } from '@wf/db';
 import type { LandZoning } from '@wf/shared';
 import { haversineKm, valueParcel } from '@wf/engine';
+import { WORLD } from './world-data.js';
 
 /**
  * Deterministic PRNG (mulberry32).
@@ -18,79 +19,6 @@ function createRandom(seed: number): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-
-interface CitySeed {
-  name: string;
-  lat: number;
-  lng: number;
-  population: number;
-  baseRatePerSqm: number;
-}
-
-interface CountrySeed {
-  name: string;
-  code: string;
-  regionName: string;
-  regionCode: string;
-  cities: CitySeed[];
-}
-
-/**
- * Five fictional countries. Deliberately invented rather than real nations, so
- * the game world carries no real-world political claims (spec: original IP).
- */
-const WORLD: CountrySeed[] = [
-  {
-    name: 'Astoria',
-    code: 'AST',
-    regionName: 'Northern Reach',
-    regionCode: 'AST-NR',
-    cities: [
-      { name: 'Port Aurelia', lat: 45.2, lng: -12.4, population: 1_850_000, baseRatePerSqm: 0.95 },
-      { name: 'Kestrel Bay', lat: 46.1, lng: -11.7, population: 620_000, baseRatePerSqm: 0.62 },
-    ],
-  },
-  {
-    name: 'Verdant Republic',
-    code: 'VRD',
-    regionName: 'Green Belt',
-    regionCode: 'VRD-GB',
-    cities: [
-      { name: 'Thornfield', lat: 38.7, lng: 4.3, population: 2_400_000, baseRatePerSqm: 1.1 },
-      { name: 'Millbrook', lat: 39.4, lng: 5.1, population: 430_000, baseRatePerSqm: 0.54 },
-    ],
-  },
-  {
-    name: 'Solenne',
-    code: 'SOL',
-    regionName: 'Sunward Coast',
-    regionCode: 'SOL-SC',
-    cities: [
-      { name: 'Calanque', lat: 31.8, lng: 18.9, population: 3_100_000, baseRatePerSqm: 1.35 },
-      { name: 'Vireau', lat: 32.5, lng: 19.6, population: 780_000, baseRatePerSqm: 0.71 },
-    ],
-  },
-  {
-    name: 'Norhavn',
-    code: 'NOR',
-    regionName: 'Iron Fjords',
-    regionCode: 'NOR-IF',
-    cities: [
-      { name: 'Steinvik', lat: 59.3, lng: 8.7, population: 940_000, baseRatePerSqm: 0.78 },
-      { name: 'Haldsund', lat: 60.1, lng: 9.4, population: 310_000, baseRatePerSqm: 0.46 },
-    ],
-  },
-  {
-    name: 'Meridia',
-    code: 'MER',
-    regionName: 'Central Plateau',
-    regionCode: 'MER-CP',
-    cities: [
-      { name: 'Ashgate', lat: -14.2, lng: 27.5, population: 1_200_000, baseRatePerSqm: 0.83 },
-      { name: 'Duneford', lat: -13.5, lng: 28.2, population: 505_000, baseRatePerSqm: 0.59 },
-    ],
-  },
-];
 
 const ZONING_WEIGHTS: ReadonlyArray<readonly [LandZoning, number]> = [
   ['unzoned', 0.3],
@@ -148,130 +76,135 @@ export async function seedWorld(db: Db, options: SeedOptions = {}): Promise<Seed
 
   let parcelCount = 0;
   let cityCount = 0;
+  let regionCount = 0;
 
   for (const country of WORLD) {
+    const countryCities = country.regions.flatMap((region) => region.cities);
     const countryRow = await db
       .insertInto('countries')
       .values({
         name: country.name,
         code: country.code,
-        population: country.cities.reduce((sum, c) => sum + c.population, 0),
+        population: countryCities.reduce((sum, c) => sum + c.population, 0),
       })
       .returning('id')
       .executeTakeFirstOrThrow();
 
-    const regionRow = await db
-      .insertInto('regions')
-      .values({
-        country_id: countryRow.id,
-        name: country.regionName,
-        code: country.regionCode,
-        population: country.cities.reduce((sum, c) => sum + c.population, 0),
-      })
-      .returning('id')
-      .executeTakeFirstOrThrow();
-
-    for (const city of country.cities) {
-      const cityRow = await db
-        .insertInto('cities')
+    for (const region of country.regions) {
+      const regionRow = await db
+        .insertInto('regions')
         .values({
-          region_id: regionRow.id,
-          name: city.name,
-          population: city.population,
-          center: sql`ST_SetSRID(ST_MakePoint(${city.lng}, ${city.lat}), 4326)` as never,
+          country_id: countryRow.id,
+          name: region.name,
+          code: region.code,
+          population: region.cities.reduce((sum, c) => sum + c.population, 0),
         })
         .returning('id')
         .executeTakeFirstOrThrow();
-      cityCount += 1;
+      regionCount += 1;
 
-      for (let i = 0; i < parcelsPerCity; i += 1) {
-        // Parcels tile a square grid centred on the city. The 0.92 factor
-        // leaves a gap between neighbours so boundaries never overlap.
-        const columns = Math.ceil(Math.sqrt(parcelsPerCity));
-        const col = i % columns;
-        const row = Math.floor(i / columns);
-        // ~44 m at the equator, so a parcel is a city lot of roughly
-        // 800-1600 m². Larger blocks priced per m² put every parcel far
-        // beyond the 10,000 starting balance.
-        const size = 0.0004;
-
-        const west = city.lng + (col - columns / 2) * size;
-        const south = city.lat + (row - columns / 2) * size;
-        const east = west + size * 0.92;
-        const north = south + size * 0.92;
-
-        const centreLng = (west + east) / 2;
-        const centreLat = (south + north) / 2;
-        const distanceKm = haversineKm(
-          { lat: city.lat, lng: city.lng },
-          { lat: centreLat, lng: centreLng },
-        );
-
-        const zoning = pickZoning(random);
-        // Utilities thin out with distance from the centre.
-        const connected = (chance: number) => random() < chance * Math.exp(-distanceKm / 6);
-        const hasPower = connected(0.95);
-        const hasWater = connected(0.9);
-        const hasRoad = connected(0.98);
-        const hasInternet = hasPower && connected(0.85);
-
-        const inserted = await db
-          .insertInto('land_parcels')
+      for (const city of region.cities) {
+        const cityRow = await db
+          .insertInto('cities')
           .values({
-            city_id: cityRow.id,
             region_id: regionRow.id,
-            owner_id: null,
-            boundary: sql`ST_MakeEnvelope(${west}, ${south}, ${east}, ${north}, 4326)` as never,
-            centroid: sql`ST_SetSRID(ST_MakePoint(${centreLng}, ${centreLat}), 4326)` as never,
-            // Let PostGIS compute true area on the spheroid rather than
-            // approximating from degrees.
-            area_sqm:
-              sql`ST_Area(ST_MakeEnvelope(${west}, ${south}, ${east}, ${north}, 4326)::geography)` as never,
-            base_value: '0',
-            market_value: '0',
-            zoning,
-            has_power: hasPower,
-            has_water: hasWater,
-            has_internet: hasInternet,
-            has_road: hasRoad,
-            for_sale: false,
+            name: city.name,
+            population: city.population,
+            center: sql`ST_SetSRID(ST_MakePoint(${city.lng}, ${city.lat}), 4326)` as never,
           })
-          .returning(['id', 'area_sqm'])
+          .returning('id')
           .executeTakeFirstOrThrow();
+        cityCount += 1;
 
-        const marketValue = valueParcel({
-          areaSqm: Number(inserted.area_sqm),
-          baseRatePerSqm: city.baseRatePerSqm,
-          cityPopulation: city.population,
-          distanceToCentreKm: distanceKm,
-          zoning,
-          hasPower,
-          hasWater,
-          hasInternet,
-          hasRoad,
-        });
+        for (let i = 0; i < parcelsPerCity; i += 1) {
+          // Parcels tile a square grid centred on the city. The 0.92 factor
+          // leaves a gap between neighbours so boundaries never overlap.
+          const columns = Math.ceil(Math.sqrt(parcelsPerCity));
+          const col = i % columns;
+          const row = Math.floor(i / columns);
+          // ~44 m at the equator, so a parcel is a city lot of roughly
+          // 800-1600 m². Larger blocks priced per m² put every parcel far
+          // beyond the 10,000 starting balance.
+          const size = 0.0004;
 
-        const forSale = random() < forSaleRatio;
+          const west = city.lng + (col - columns / 2) * size;
+          const south = city.lat + (row - columns / 2) * size;
+          const east = west + size * 0.92;
+          const north = south + size * 0.92;
 
-        await db
-          .updateTable('land_parcels')
-          .set({
-            base_value: marketValue,
-            market_value: marketValue,
-            for_sale: forSale,
-            sale_price: forSale ? marketValue : null,
-          })
-          .where('id', '=', inserted.id)
-          .execute();
+          const centreLng = (west + east) / 2;
+          const centreLat = (south + north) / 2;
+          const distanceKm = haversineKm(
+            { lat: city.lat, lng: city.lng },
+            { lat: centreLat, lng: centreLng },
+          );
 
-        parcelCount += 1;
+          const zoning = pickZoning(random);
+          // Utilities thin out with distance from the centre.
+          const connected = (chance: number) => random() < chance * Math.exp(-distanceKm / 6);
+          const hasPower = connected(0.95);
+          const hasWater = connected(0.9);
+          const hasRoad = connected(0.98);
+          const hasInternet = hasPower && connected(0.85);
+
+          const inserted = await db
+            .insertInto('land_parcels')
+            .values({
+              city_id: cityRow.id,
+              region_id: regionRow.id,
+              owner_id: null,
+              boundary: sql`ST_MakeEnvelope(${west}, ${south}, ${east}, ${north}, 4326)` as never,
+              centroid: sql`ST_SetSRID(ST_MakePoint(${centreLng}, ${centreLat}), 4326)` as never,
+              // Let PostGIS compute true area on the spheroid rather than
+              // approximating from degrees.
+              area_sqm:
+                sql`ST_Area(ST_MakeEnvelope(${west}, ${south}, ${east}, ${north}, 4326)::geography)` as never,
+              base_value: '0',
+              market_value: '0',
+              zoning,
+              has_power: hasPower,
+              has_water: hasWater,
+              has_internet: hasInternet,
+              has_road: hasRoad,
+              for_sale: false,
+            })
+            .returning(['id', 'area_sqm'])
+            .executeTakeFirstOrThrow();
+
+          const marketValue = valueParcel({
+            areaSqm: Number(inserted.area_sqm),
+            baseRatePerSqm: city.baseRatePerSqm,
+            cityPopulation: city.population,
+            distanceToCentreKm: distanceKm,
+            zoning,
+            hasPower,
+            hasWater,
+            hasInternet,
+            hasRoad,
+          });
+
+          const forSale = random() < forSaleRatio;
+
+          await db
+            .updateTable('land_parcels')
+            .set({
+              base_value: marketValue,
+              market_value: marketValue,
+              for_sale: forSale,
+              sale_price: forSale ? marketValue : null,
+            })
+            .where('id', '=', inserted.id)
+            .execute();
+
+          parcelCount += 1;
+        }
       }
     }
   }
 
   return {
     countries: WORLD.length,
-    regions: WORLD.length,
+    regions: regionCount,
     cities: cityCount,
     parcels: parcelCount,
   };

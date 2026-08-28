@@ -5,6 +5,7 @@ import { requireAuth, requireWorldAccess } from '../auth/guards.js';
 import {
   buyParcel,
   getParcel,
+  listCities,
   listMarket,
   listOwnedParcels,
   listParcelForSale,
@@ -45,6 +46,9 @@ export async function landRoutes(app: FastifyInstance): Promise<void> {
     }
     return listParcelsInViewport(app.db, parsed.data);
   });
+
+  /** GET /api/land/cities — where the parcels are, for the map's jump control. */
+  app.get('/land/cities', async () => listCities(app.db));
 
   app.get('/land/market', async (request) => {
     const { limit } = request.query as { limit?: string };

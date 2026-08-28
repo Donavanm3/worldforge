@@ -291,3 +291,17 @@ export interface PayrollResult {
   unpaid: number;
   total: string;
 }
+
+/** A seeded city, used by the map's jump-to control. */
+export interface CitySummary {
+  id: string;
+  name: string;
+  regionName: string;
+  countryName: string;
+  countryCode: string;
+  lat: number;
+  lng: number;
+  population: number;
+  parcelCount: number;
+  forSaleCount: number;
+}

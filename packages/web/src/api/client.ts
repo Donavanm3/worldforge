@@ -19,6 +19,7 @@ import type {
   GameSettings,
   MeResponse,
   OwnedParcel,
+  CitySummary,
   ParcelCollection,
   ParcelDetail,
   MarketListing,
@@ -201,6 +202,7 @@ export const api = {
     request<ParcelCollection>(
       `/land/parcels?west=${bbox.west}&south=${bbox.south}&east=${bbox.east}&north=${bbox.north}`,
     ),
+  cities: () => request<CitySummary[]>('/land/cities'),
   parcel: (id: string) => request<ParcelDetail>(`/land/parcels/${id}`),
   myParcels: () => request<OwnedParcel[]>('/land/mine'),
   market: () => request<MarketListing[]>('/land/market'),

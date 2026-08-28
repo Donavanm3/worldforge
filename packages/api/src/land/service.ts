@@ -68,6 +68,73 @@ export function assertViewport(bbox: BoundingBox): void {
  *
  * `&&` uses the GiST index on boundary; ST_Intersects then filters exactly.
  */
+export interface CitySummary {
+  id: string;
+  name: string;
+  regionName: string;
+  countryName: string;
+  countryCode: string;
+  lat: number;
+  lng: number;
+  population: number;
+  parcelCount: number;
+  forSaleCount: number;
+}
+
+/**
+ * Every seeded city, for the map's jump-to control (spec 48).
+ *
+ * Parcels occupy a few hundred metres around each city centre; scattered
+ * across a real-world basemap they are unfindable by panning. This is the
+ * index that makes the map navigable.
+ */
+export async function listCities(db: Db): Promise<CitySummary[]> {
+  const rows = await db
+    .selectFrom('cities')
+    .innerJoin('regions', 'regions.id', 'cities.region_id')
+    .innerJoin('countries', 'countries.id', 'regions.country_id')
+    .leftJoin('land_parcels', 'land_parcels.city_id', 'cities.id')
+    .select([
+      'cities.id',
+      'cities.name',
+      'cities.population',
+      'regions.name as region_name',
+      'countries.name as country_name',
+      'countries.code as country_code',
+    ])
+    .select(sql<number>`ST_Y(cities.center)`.as('lat'))
+    .select(sql<number>`ST_X(cities.center)`.as('lng'))
+    .select(sql<string>`count(land_parcels.id)`.as('parcel_count'))
+    .select(
+      sql<string>`count(land_parcels.id) filter (where land_parcels.for_sale)`.as('for_sale_count'),
+    )
+    .groupBy([
+      'cities.id',
+      'cities.name',
+      'cities.population',
+      'cities.center',
+      'regions.name',
+      'countries.name',
+      'countries.code',
+    ])
+    .orderBy('countries.name')
+    .orderBy('cities.name')
+    .execute();
+
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    regionName: row.region_name,
+    countryName: row.country_name,
+    countryCode: row.country_code,
+    lat: Number(row.lat),
+    lng: Number(row.lng),
+    population: Number(row.population),
+    parcelCount: Number(row.parcel_count),
+    forSaleCount: Number(row.for_sale_count),
+  }));
+}
+
 export async function listParcelsInViewport(db: Db, bbox: BoundingBox): Promise<ParcelCollection> {
   assertViewport(bbox);
 
