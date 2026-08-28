@@ -8,6 +8,28 @@ Once this is done, shipping a change is one command:
 ./deploy/update.sh
 ```
 
+## Where do I type these commands?
+
+**On the server, not on your own computer.** Open your SSH client (Termius,
+PuTTY, Windows Terminal — any of them), connect to the VPS, and paste the
+commands into that terminal session. Every command in this guide runs there
+unless a step explicitly says otherwise.
+
+Nothing here runs on your development machine. You write code locally and
+`git push`; the server pulls it in step "Ship a change".
+
+### You need a VPS first
+
+If you have not rented one yet, nothing below can run. Any provider works —
+Hetzner, DigitalOcean, Vultr, Linode. Choose:
+
+- **Ubuntu 24.04 LTS**
+- **2 vCPU, 4 GB RAM** (enough for everything on one box)
+
+The provider gives you an **IP address** and either a root password or the
+chance to upload an SSH key. Add those as a new Host in your SSH client. When
+connecting shows you a prompt like `root@ubuntu:~#`, start at step 1.
+
 ---
 
 ## 1. Point your domain at the server
