@@ -43,6 +43,16 @@ pnpm build
 log "Running migrations"
 pnpm migrate
 
+# Nginx runs as www-data and cannot read a checkout under /root, so the built
+# frontend is published to a directory it can serve from instead of being
+# served out of the repository in place.
+WEB_ROOT="${WF_WEB_ROOT:-/var/www/worldforge}"
+if [ -d "$WEB_ROOT" ]; then
+  log "Publishing the frontend to $WEB_ROOT"
+  rm -rf "${WEB_ROOT:?}/"*
+  cp -r packages/web/dist/. "$WEB_ROOT/"
+fi
+
 log "Reloading processes"
 if pm2 describe wf-api >/dev/null 2>&1; then
   pm2 reload ecosystem.config.cjs --update-env
