@@ -17,13 +17,19 @@ async function main(): Promise<void> {
   const db = createDb({ connectionString });
   try {
     if (reset) {
-      // Deliberately narrow: this drops the geography and every claim on it,
-      // and nothing else. Player accounts, companies and balances survive —
-      // but any land they bought is gone, so this is a pre-launch tool.
+      // DELETE, never TRUNCATE CASCADE. Cascading truncation empties every
+      // table holding a foreign key into these — users.home_city_id points at
+      // cities, so a CASCADE here would delete every player account. DELETE
+      // instead fires the ON DELETE SET NULL the schema declares, detaching
+      // companies and players from the land rather than destroying them.
+      //
+      // Any land a player bought is still gone, so this stays a pre-launch
+      // tool. Take a backup first.
       console.log('Resetting the world (land, cities, regions, countries)...');
-      await sql`truncate table land_parcels, cities, regions, countries restart identity cascade`.execute(
-        db,
-      );
+      await sql`delete from land_parcels`.execute(db);
+      await sql`delete from cities`.execute(db);
+      await sql`delete from regions`.execute(db);
+      await sql`delete from countries`.execute(db);
     }
 
     console.log('Seeding item catalogue...');
