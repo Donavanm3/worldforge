@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { LAND_ZONINGS, ValidationError, isValidAmount } from '@wf/shared';
 import { requireAuth, requireWorldAccess } from '../auth/guards.js';
+import { generateLandForViewport } from '../land/generate.js';
 import {
   buyParcel,
   getParcel,
@@ -49,6 +50,25 @@ export async function landRoutes(app: FastifyInstance): Promise<void> {
 
   /** GET /api/land/cities — where the parcels are, for the map's jump control. */
   app.get('/land/cities', async () => listCities(app.db));
+
+  /**
+   * POST /api/land/generate — cut parcels for a viewport that has none.
+   *
+   * Rate limited hard: each call can mean several Overpass requests, and that
+   * is a volunteer service. The client only calls it when a zoomed-in viewport
+   * comes back empty.
+   */
+  app.post(
+    '/land/generate',
+    { config: { rateLimit: { max: 10, timeWindow: '5 minutes' } } },
+    async (request) => {
+      const parsed = viewportSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Generating land requires west, south, east and north');
+      }
+      return generateLandForViewport(app.db, parsed.data);
+    },
+  );
 
   app.get('/land/market', async (request) => {
     const { limit } = request.query as { limit?: string };

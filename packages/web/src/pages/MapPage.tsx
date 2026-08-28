@@ -5,6 +5,7 @@ import { ApiError, api } from '../api/client.js';
 import type { CitySummary, ParcelCollection, ParcelProperties } from '../api/types.js';
 import { useAuth } from '../auth/AuthContext.js';
 import { Alert, Button } from '../components/ui.js';
+import { BuildDialog } from '../components/BuildDialog.js';
 import { formatArea, formatMoney, titleCase } from '../lib/format.js';
 
 const SOURCE_ID = 'parcels';
@@ -37,6 +38,9 @@ export function MapPage() {
   const [truncated, setTruncated] = useState(false);
   const [busy, setBusy] = useState(false);
   const [cities, setCities] = useState<CitySummary[]>([]);
+  const [building, setBuilding] = useState(false);
+  const [empty, setEmpty] = useState(false);
+  const [claiming, setClaiming] = useState(false);
   const { me, refresh } = useAuth();
 
   const loadParcels = useCallback(async () => {
@@ -53,6 +57,10 @@ export function MapPage() {
       });
       setTruncated(collection.truncated);
       setError(null);
+      // An empty viewport this far in means the world has not cut this patch
+      // of the planet into parcels yet — offer to do it rather than showing
+      // the player a blank map with no explanation.
+      setEmpty(collection.features.length === 0 && instance.getZoom() >= 15);
       (instance.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined)?.setData(
         collection as never,
       );
@@ -149,6 +157,30 @@ export function MapPage() {
     map.current?.flyTo({ center: [city.lng, city.lat], zoom: 15, speed: 2.2 });
   }, []);
 
+  const claimArea = async () => {
+    const instance = map.current;
+    if (!instance) return;
+    setClaiming(true);
+    setError(null);
+    try {
+      const bounds = instance.getBounds();
+      const result = await api.generateLand({
+        west: bounds.getWest(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        north: bounds.getNorth(),
+      });
+      if (result.parcelsCreated === 0) {
+        setError('No streets here to divide — try somewhere built up.');
+      }
+      await loadParcels();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not survey this area.');
+    } finally {
+      setClaiming(false);
+    }
+  };
+
   const onBuy = async () => {
     if (!selected) return;
     setBusy(true);
@@ -176,6 +208,22 @@ export function MapPage() {
         {error && (
           <div className="pointer-events-auto max-w-xs">
             <Alert tone={error.startsWith('Zoom') ? 'info' : 'error'}>{error}</Alert>
+          </div>
+        )}
+        {empty && !claiming && (
+          <div className="pointer-events-auto max-w-xs rounded-md border border-ink-600 bg-ink-800/95 p-3">
+            <p className="mb-2 text-xs text-slate-300">
+              No land has been surveyed here yet. Survey it and the streets below become buyable
+              parcels.
+            </p>
+            <Button className="w-full px-2 py-1 text-xs" onClick={claimArea}>
+              Survey this area
+            </Button>
+          </div>
+        )}
+        {claiming && (
+          <div className="pointer-events-auto max-w-xs">
+            <Alert tone="info">Surveying the streets here — this takes a few seconds.</Alert>
           </div>
         )}
         {truncated && (
@@ -288,7 +336,30 @@ export function MapPage() {
           ) : (
             <p className="mt-5 text-sm text-slate-500">This parcel is not for sale.</p>
           )}
+
+          {/* Building is the point of owning land, so the entry point lives
+              here on the parcel rather than behind a separate page. */}
+          {selected.ownerId === me?.user?.id && (
+            <div className="mt-3">
+              <Button variant="secondary" className="w-full" onClick={() => setBuilding(true)}>
+                Build here
+              </Button>
+            </div>
+          )}
         </aside>
+      )}
+
+      {building && selected && (
+        <BuildDialog
+          parcelId={selected.id}
+          parcelAreaSqm={Number(selected.areaSqm)}
+          onClose={() => setBuilding(false)}
+          onBuilt={() => {
+            setBuilding(false);
+            setSelected(null);
+            void loadParcels();
+          }}
+        />
       )}
     </div>
   );

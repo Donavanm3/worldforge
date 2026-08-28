@@ -19,8 +19,13 @@ import type {
   GameSettings,
   MeResponse,
   OwnedParcel,
+  BuildingDetail,
+  BuildingQuote,
+  BuildingSummary,
   CitySummary,
   ParcelCollection,
+  StartBuildResult,
+  UnitSummary,
   ParcelDetail,
   MarketListing,
   PaymentsDashboard,
@@ -203,6 +208,13 @@ export const api = {
       `/land/parcels?west=${bbox.west}&south=${bbox.south}&east=${bbox.east}&north=${bbox.north}`,
     ),
   cities: () => request<CitySummary[]>('/land/cities'),
+  generateLand: (bbox: { west: number; south: number; east: number; north: number }) =>
+    request<{
+      tilesRequested: number;
+      tilesGenerated: number;
+      parcelsCreated: number;
+      alreadyGenerated: boolean;
+    }>('/land/generate', { method: 'POST', body: bbox }),
   parcel: (id: string) => request<ParcelDetail>(`/land/parcels/${id}`),
   myParcels: () => request<OwnedParcel[]>('/land/mine'),
   market: () => request<MarketListing[]>('/land/market'),
@@ -210,6 +222,25 @@ export const api = {
   listParcel: (id: string, price: string) =>
     request<void>(`/land/parcels/${id}/list`, { method: 'POST', body: { price } }),
   unlistParcel: (id: string) => request<void>(`/land/parcels/${id}/list`, { method: 'DELETE' }),
+
+  // --- buildings ---
+  quoteBuilding: (parcelId: string, plan: { footprintSqm: number; floors: number; type: string }) =>
+    request<BuildingQuote>(`/land/parcels/${parcelId}/quote`, { method: 'POST', body: plan }),
+  startBuild: (
+    parcelId: string,
+    plan: { name: string; footprintSqm: number; floors: number; type: string },
+  ) => request<StartBuildResult>(`/land/parcels/${parcelId}/build`, { method: 'POST', body: plan }),
+  myBuildings: () => request<BuildingSummary[]>('/buildings/mine'),
+  buildingMarket: () => request<BuildingSummary[]>('/buildings/market'),
+  building: (id: string) => request<BuildingDetail>(`/buildings/${id}`),
+  myUnits: () => request<UnitSummary[]>('/units/mine'),
+  listUnit: (id: string, price: string) =>
+    request<void>(`/units/${id}/list`, { method: 'POST', body: { price } }),
+  unlistUnit: (id: string) => request<void>(`/units/${id}/list`, { method: 'DELETE' }),
+  buyUnit: (id: string) =>
+    request<{ unitId: string; pricePaid: string; balance: string }>(`/units/${id}/buy`, {
+      method: 'POST',
+    }),
 
   // --- economy: catalogue ---
   items: () => request<Item[]>('/items'),

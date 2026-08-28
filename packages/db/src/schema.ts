@@ -22,6 +22,8 @@ export type Geometry = ColumnType<string, string, string>;
 export type {
   AccessSource,
   BondStatus,
+  BuildingStatus,
+  BuildingType,
   EmploymentStatus,
   ListingStatus,
   LoanStatus,
@@ -33,6 +35,7 @@ export type {
   OrderStatus,
   PaymentStatus,
   ProductionStatus,
+  UnitUse,
   UserRole,
   UserStatus,
 } from '@wf/shared';
@@ -40,6 +43,8 @@ export type {
 import type {
   AccessSource,
   BondStatus,
+  BuildingStatus,
+  BuildingType,
   EmploymentStatus,
   ListingStatus,
   LoanStatus,
@@ -50,6 +55,7 @@ import type {
   OrderStatus,
   PaymentStatus,
   ProductionStatus,
+  UnitUse,
   UserRole,
   UserStatus,
 } from '@wf/shared';
@@ -124,13 +130,15 @@ export interface CitiesTable {
   name: string;
   center: Geometry;
   population: Generated<number>;
+  /** Game-balance land rate, used to value parcels near this city. */
+  base_rate_per_sqm: Generated<Numeric>;
   created_at: Generated<Timestamp>;
 }
 
 export interface LandParcelsTable {
   id: Generated<string>;
   city_id: string | null;
-  region_id: string;
+  region_id: string | null;
   owner_id: string | null;
   boundary: Geometry;
   centroid: Geometry;
@@ -422,6 +430,68 @@ export interface TickRunsTable {
   error: string | null;
 }
 
+/**
+ * A building occupies exactly one parcel (spec 14). Construction is not
+ * instant: `completes_at` is set when work starts and the tick flips the
+ * status, so a half-built tower cannot be sold as finished space.
+ */
+export interface BuildingsTable {
+  id: Generated<string>;
+  parcel_id: string;
+  owner_id: string;
+  company_id: string | null;
+  name: string;
+  type: BuildingType;
+  status: Generated<BuildingStatus>;
+  floors: number;
+  footprint_sqm: Numeric;
+  construction_cost: Numeric;
+  completes_at: Timestamp;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
+/** Ground floor is level 0; basements are negative. */
+export interface BuildingFloorsTable {
+  id: Generated<string>;
+  building_id: string;
+  level: number;
+  floor_area_sqm: Numeric;
+  use: UnitUse;
+  created_at: Generated<Timestamp>;
+}
+
+/** The tradeable space inside a building: a flat, an office, a shop. */
+export interface BuildingUnitsTable {
+  id: Generated<string>;
+  building_id: string;
+  floor_id: string;
+  label: string;
+  area_sqm: Numeric;
+  use: UnitUse;
+  owner_id: string | null;
+  market_value: Numeric;
+  for_sale: Generated<boolean>;
+  sale_price: Numeric | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+}
+
+
+/**
+ * One cell of the worldwide land grid. A row exists only once a player has
+ * caused that patch of the planet to be cut into parcels.
+ */
+export interface LandTilesTable {
+  id: Generated<string>;
+  tile_x: number;
+  tile_y: number;
+  status: Generated<'pending' | 'ready' | 'empty' | 'failed'>;
+  parcel_count: Generated<number>;
+  created_at: Generated<Timestamp>;
+  completed_at: Timestamp | null;
+}
+
 export interface Database {
   users: UsersTable;
   profiles: ProfilesTable;
@@ -453,6 +523,10 @@ export interface Database {
   share_orders: ShareOrdersTable;
   share_trades: ShareTradesTable;
   bonds: BondsTable;
+  land_tiles: LandTilesTable;
+  buildings: BuildingsTable;
+  building_floors: BuildingFloorsTable;
+  building_units: BuildingUnitsTable;
   tick_runs: TickRunsTable;
 }
 
@@ -489,3 +563,8 @@ export type Bond = Selectable<BondsTable>;
 export type Shareholding = Selectable<ShareholdingsTable>;
 export type ShareOrder = Selectable<ShareOrdersTable>;
 export type PricePoint = Selectable<PriceHistoryTable>;
+
+export type Building = Selectable<BuildingsTable>;
+export type NewBuilding = Insertable<BuildingsTable>;
+export type BuildingFloor = Selectable<BuildingFloorsTable>;
+export type BuildingUnit = Selectable<BuildingUnitsTable>;

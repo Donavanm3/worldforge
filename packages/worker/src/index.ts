@@ -9,3 +9,8 @@ export {
   runProductionTick,
   type TickResult,
 } from './tick.js';
+
+// Used by the API to cut land on demand anywhere in the world.
+export { fetchRoadNetwork, type OsmOptions, type RoadLine } from './seed/osm.js';
+export { polygonizeBlocks, type Block, type PolygonizeOptions } from './seed/blocks.js';
+

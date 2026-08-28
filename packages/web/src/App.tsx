@@ -8,6 +8,7 @@ import { AdminPage } from './pages/AdminPage.js';
 import { BetaAccessPage, BetaSuccessPage } from './pages/BetaAccessPage.js';
 import { BetaPage } from './pages/BetaPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
+import { BuildingsPage } from './pages/BuildingsPage.js';
 import { LandPage } from './pages/LandPage.js';
 import { CompaniesPage } from './pages/CompaniesPage.js';
 import { MarketsPage } from './pages/MarketsPage.js';
@@ -108,6 +109,7 @@ export function App() {
               }
             />
             <Route path="/land" element={<LandPage />} />
+            <Route path="/buildings" element={<BuildingsPage />} />
             <Route path="/markets" element={<MarketsPage />} />
             <Route path="/companies" element={<CompaniesPage />} />
             <Route path="/jobs" element={<JobsPage />} />

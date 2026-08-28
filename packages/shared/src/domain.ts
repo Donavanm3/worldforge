@@ -110,3 +110,24 @@ export interface PriceSignal {
   /** Units actually traded in the window. */
   volume: number;
 }
+
+// --- Buildings (spec 14-16) -------------------------------------------------
+
+export type BuildingType =
+  'residential' | 'office' | 'retail' | 'industrial' | 'mixed_use' | 'civic';
+
+export const BUILDING_TYPES: readonly BuildingType[] = [
+  'residential',
+  'office',
+  'retail',
+  'industrial',
+  'mixed_use',
+  'civic',
+];
+
+export type BuildingStatus = 'under_construction' | 'complete' | 'demolished';
+
+/** What a floor or unit is fitted out for. */
+export type UnitUse = 'apartment' | 'office' | 'shop' | 'workshop' | 'storage';
+
+export const UNIT_USES: readonly UnitUse[] = ['apartment', 'office', 'shop', 'workshop', 'storage'];

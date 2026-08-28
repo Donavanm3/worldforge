@@ -10,6 +10,7 @@ const NAV = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/map', label: 'Map' },
   { to: '/land', label: 'Land' },
+  { to: '/buildings', label: 'Buildings' },
   { to: '/markets', label: 'Markets' },
   { to: '/companies', label: 'Companies' },
   { to: '/jobs', label: 'Jobs' },

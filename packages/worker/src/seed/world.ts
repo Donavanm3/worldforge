@@ -193,6 +193,9 @@ export async function seedWorld(db: Db, options: SeedOptions = {}): Promise<Seed
             region_id: regionRow.id,
             name: city.name,
             population: city.population,
+            // Stored so on-demand generation elsewhere in the world can price
+            // land from the nearest city rather than a hard-coded constant.
+            base_rate_per_sqm: sql`${city.baseRatePerSqm}::numeric` as never,
             center: sql`ST_SetSRID(ST_MakePoint(${city.lng}, ${city.lat}), 4326)` as never,
           })
           .returning('id')

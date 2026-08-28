@@ -6,7 +6,41 @@ export interface TickResult {
   itemsRepriced: number;
   runsCompleted: number;
   loansAccrued: number;
+  buildingsCompleted: number;
   priceIndex: number;
+}
+
+/**
+ * Hands over every building whose completion time has passed (spec 14).
+ *
+ * The status flip is the only gate on trading units, so this is what turns a
+ * construction site into sellable property. It lives here rather than in the
+ * API because the tick must never import @wf/api.
+ */
+export async function runConstructionTick(db: Db): Promise<number> {
+  const finished = await db
+    .updateTable('buildings')
+    .set({ status: 'complete', updated_at: sql`now()` })
+    .where('status', '=', 'under_construction')
+    .where('completes_at', '<=', sql`now()` as never)
+    .returning(['id', 'owner_id', 'name'])
+    .execute();
+
+  if (finished.length > 0) {
+    await db
+      .insertInto('notifications')
+      .values(
+        finished.map((building) => ({
+          user_id: building.owner_id,
+          kind: 'building_complete',
+          title: 'Construction complete',
+          body: `${building.name} is finished. Its units can now be sold.`,
+        })),
+      )
+      .execute();
+  }
+
+  return finished.length;
 }
 
 /**
@@ -176,11 +210,13 @@ export async function runEconomyTick(db: Db): Promise<TickResult> {
     const runsCompleted = await runProductionTick(db);
     const { repriced, index } = await runPriceTick(db);
     const loansAccrued = await runInterestTick(db);
+    const buildingsCompleted = await runConstructionTick(db);
 
     const result: TickResult = {
       itemsRepriced: repriced,
       runsCompleted,
       loansAccrued,
+      buildingsCompleted,
       priceIndex: index,
     };
 

@@ -305,3 +305,67 @@ export interface CitySummary {
   parcelCount: number;
   forSaleCount: number;
 }
+
+// --- Buildings (spec 14-16) -------------------------------------------------
+
+export type BuildingType =
+  'residential' | 'office' | 'retail' | 'industrial' | 'mixed_use' | 'civic';
+export type BuildingStatus = 'under_construction' | 'complete' | 'demolished';
+export type UnitUse = 'apartment' | 'office' | 'shop' | 'workshop' | 'storage';
+
+export interface BuildingSummary {
+  id: string;
+  parcelId: string;
+  ownerId: string;
+  ownerName: string | null;
+  name: string;
+  type: BuildingType;
+  status: BuildingStatus;
+  floors: number;
+  footprintSqm: string;
+  constructionCost: string;
+  completesAt: string;
+  cityName: string | null;
+  unitCount: number;
+  unitsForSale: number;
+}
+
+export interface UnitSummary {
+  id: string;
+  buildingId: string;
+  label: string;
+  level: number;
+  areaSqm: string;
+  use: UnitUse;
+  ownerId: string | null;
+  ownerName: string | null;
+  marketValue: string;
+  forSale: boolean;
+  salePrice: string | null;
+}
+
+export interface BuildingDetail extends BuildingSummary {
+  floorPlan: Array<{
+    level: number;
+    floorAreaSqm: string;
+    use: UnitUse;
+    units: UnitSummary[];
+  }>;
+}
+
+export interface BuildingQuote {
+  constructionCost: string;
+  buildMinutes: number;
+  floors: number;
+  unitCount: number;
+  grossFloorAreaSqm: number;
+  netFloorAreaSqm: number;
+}
+
+export interface StartBuildResult {
+  buildingId: string;
+  constructionCost: string;
+  completesAt: string;
+  unitCount: number;
+  balance: string;
+}

@@ -3,6 +3,8 @@ import * as initialSchema from './001-initial-schema.js';
 import * as paymentEventsAndAudit from './002-payment-events-and-audit.js';
 import * as companiesAndEconomy from './003-companies-and-economy.js';
 import * as financeAndPrices from './004-finance-and-prices.js';
+import * as buildingsAndUnits from './005-buildings-and-units.js';
+import * as worldwideLand from './006-worldwide-land.js';
 
 /**
  * Migrations are registered statically rather than read from disk.
@@ -19,6 +21,8 @@ export const migrations: Record<string, Migration> = {
   '002-payment-events-and-audit': paymentEventsAndAudit,
   '003-companies-and-economy': companiesAndEconomy,
   '004-finance-and-prices': financeAndPrices,
+  '005-buildings-and-units': buildingsAndUnits,
+  '006-worldwide-land': worldwideLand,
 };
 
 export class StaticMigrationProvider implements MigrationProvider {

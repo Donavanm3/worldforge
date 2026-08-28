@@ -37,3 +37,15 @@ export {
   priceIndex,
   type PricingConfig,
 } from './pricing.js';
+
+export {
+  BuildingPlanError,
+  planBuilding,
+  unitValue,
+  type BuildingPlan,
+  type BuildingPlanInput,
+  type PlannedFloor,
+  type PlannedUnit,
+  type UnitValueInput,
+} from './building.js';
+
