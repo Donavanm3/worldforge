@@ -32,3 +32,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.log
+
+# Cached OpenStreetMap responses used by the world seeder.
+.cache/

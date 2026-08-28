@@ -13,6 +13,9 @@ async function main(): Promise<void> {
   }
 
   const reset = process.argv.includes('--reset-world');
+  // Opt in, because it makes tens of requests to a volunteer OSM service and
+  // turns a two-second seed into a several-minute one.
+  const realBlocks = process.argv.includes('--real-blocks');
 
   const db = createDb({ connectionString });
   try {
@@ -36,12 +39,25 @@ async function main(): Promise<void> {
     const catalog = await seedCatalog(db);
     console.log(`  ${catalog.items} items, ${catalog.recipes} recipes`);
 
-    console.log('Seeding starter world...');
-    const summary = await seedWorld(db);
+    console.log(
+      realBlocks
+        ? 'Seeding world with parcels cut from the OpenStreetMap street network...'
+        : 'Seeding starter world (grid parcels; pass --real-blocks for real city blocks)...',
+    );
+    const summary = await seedWorld(db, {
+      useRealBlocks: realBlocks,
+      onProgress: (message) => console.log(message),
+    });
     console.log(
       `  ${summary.countries} countries, ${summary.regions} regions, ` +
         `${summary.cities} cities, ${summary.parcels} land parcels`,
     );
+    if (realBlocks) {
+      console.log(
+        `  ${summary.citiesFromStreets} of ${summary.cities} cities follow real streets; ` +
+          `the rest fell back to the grid.`,
+      );
+    }
     console.log('Seed complete.');
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
