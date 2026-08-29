@@ -5,6 +5,7 @@ import * as companiesAndEconomy from './003-companies-and-economy.js';
 import * as financeAndPrices from './004-finance-and-prices.js';
 import * as buildingsAndUnits from './005-buildings-and-units.js';
 import * as worldwideLand from './006-worldwide-land.js';
+import * as deedsAndRevenue from './007-deeds-and-revenue.js';
 
 /**
  * Migrations are registered statically rather than read from disk.
@@ -23,6 +24,7 @@ export const migrations: Record<string, Migration> = {
   '004-finance-and-prices': financeAndPrices,
   '005-buildings-and-units': buildingsAndUnits,
   '006-worldwide-land': worldwideLand,
+  '007-deeds-and-revenue': deedsAndRevenue,
 };
 
 export class StaticMigrationProvider implements MigrationProvider {

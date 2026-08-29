@@ -215,3 +215,100 @@ export function unitValue(input: UnitValueInput): number {
 
   return round(base * heightFactor * (0.6 + 0.4 * landRate));
 }
+
+// --- Trade, revenue and deeds (spec 17) -------------------------------------
+
+/**
+ * Share of a unit's earnings that goes to whoever holds the building deed.
+ *
+ * This is the whole reason a deed is worth more than the unsold rooms in it:
+ * the deed holder earns from space they do not own. Set too high, nobody would
+ * ever buy a room; too low and a building is just a list of rooms.
+ */
+export const DEED_REVENUE_SHARE = 0.15;
+
+export interface FootTrafficInput {
+  /** Metres of the site's boundary that front a road. */
+  streetFrontageM: number;
+  /** Population of the nearest city. */
+  cityPopulation: number;
+  distanceToCentreKm: number;
+}
+
+/**
+ * Passing trade at a site, as a multiplier around 1.
+ *
+ * Frontage matters more than size: a deep plot behind a narrow shopfront sees
+ * the same passers-by as a small one. Clamped so no location is worthless and
+ * none is a licence to print money.
+ */
+export function footTraffic(input: FootTrafficInput): number {
+  const frontage = Math.max(0, input.streetFrontageM);
+  // 40 m of frontage is an ordinary high-street plot: the reference point.
+  const frontageFactor = Math.sqrt(Math.max(0.15, frontage / 40));
+  const populationFactor = Math.log10(Math.max(1_000, input.cityPopulation)) / 6;
+  const centreFactor = Math.exp(-Math.max(0, input.distanceToCentreKm) / 8);
+
+  const raw = frontageFactor * (0.5 + populationFactor) * (0.55 + 0.75 * centreFactor);
+  return Math.round(Math.min(3, Math.max(0.2, raw)) * 100) / 100;
+}
+
+/** Per-tick earnings, by use, before foot traffic. */
+const REVENUE_PER_SQM: Record<UnitUse, number> = {
+  shop: 0.085,
+  office: 0.055,
+  apartment: 0.038,
+  workshop: 0.03,
+  storage: 0.016,
+};
+
+/**
+ * How strongly each use depends on passing trade.
+ *
+ * A shop lives or dies by footfall; a storage unit does not care at all. Using
+ * one multiplier for everything would make warehouses in the middle of nowhere
+ * worthless and city-centre storage absurdly profitable.
+ */
+const TRAFFIC_SENSITIVITY: Record<UnitUse, number> = {
+  shop: 1,
+  office: 0.55,
+  apartment: 0.3,
+  workshop: 0.25,
+  storage: 0.1,
+};
+
+export interface UnitRevenueInput {
+  areaSqm: number;
+  use: UnitUse;
+  footTraffic: number;
+}
+
+/** What one unit earns per tick. */
+export function unitRevenue(input: UnitRevenueInput): number {
+  const sensitivity = TRAFFIC_SENSITIVITY[input.use];
+  // A unit still earns its base at zero traffic; traffic scales the part of
+  // the income that actually depends on people walking past.
+  const trafficFactor = 1 + sensitivity * (Math.max(0, input.footTraffic) - 1);
+
+  return round(input.areaSqm * REVENUE_PER_SQM[input.use] * Math.max(0.1, trafficFactor));
+}
+
+export interface AppraisalInput {
+  /** Market value of every unit in the building. */
+  unitValues: number[];
+  /** Per-tick revenue of every unit, whoever owns it. */
+  unitRevenues: number[];
+}
+
+/**
+ * What a building's deed is worth.
+ *
+ * The deed is priced as the rooms it comes with plus the income stream it
+ * skims from the rest — capitalised at 400 ticks, so a well-let building is
+ * worth markedly more than the sum of its empty rooms.
+ */
+export function appraiseBuilding(input: AppraisalInput): number {
+  const bricks = input.unitValues.reduce((sum, value) => sum + value, 0);
+  const income = input.unitRevenues.reduce((sum, value) => sum + value, 0);
+  return round(bricks + income * DEED_REVENUE_SHARE * 400);
+}

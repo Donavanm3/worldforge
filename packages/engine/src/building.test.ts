@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { BuildingPlanError, planBuilding, unitValue } from './building.js';
+import {
+  BuildingPlanError,
+  appraiseBuilding,
+  footTraffic,
+  planBuilding,
+  unitRevenue,
+  unitValue,
+} from './building.js';
 
 const base = { parcelAreaSqm: 2000, footprintSqm: 1000, floors: 5, type: 'office' as const };
 
@@ -98,5 +105,71 @@ describe('unitValue', () => {
     const veryHigh = unitValue({ areaSqm: 100, use: 'shop', level: 100 });
     const ground = unitValue({ areaSqm: 100, use: 'shop', level: 0 });
     expect(veryHigh).toBeCloseTo(ground * 0.55, 1);
+  });
+});
+
+describe('footTraffic', () => {
+  const base = { streetFrontageM: 40, cityPopulation: 1_000_000, distanceToCentreKm: 2 };
+
+  it('rewards street frontage', () => {
+    const narrow = footTraffic({ ...base, streetFrontageM: 10 });
+    const wide = footTraffic({ ...base, streetFrontageM: 120 });
+    expect(wide).toBeGreaterThan(narrow);
+  });
+
+  it('falls away from the city centre', () => {
+    expect(footTraffic({ ...base, distanceToCentreKm: 30 })).toBeLessThan(
+      footTraffic({ ...base, distanceToCentreKm: 1 }),
+    );
+  });
+
+  it('stays inside sane bounds anywhere', () => {
+    const extremes = [
+      { streetFrontageM: 0, cityPopulation: 1, distanceToCentreKm: 500 },
+      { streetFrontageM: 100_000, cityPopulation: 40_000_000, distanceToCentreKm: 0 },
+    ];
+    for (const input of extremes) {
+      const value = footTraffic(input);
+      expect(value).toBeGreaterThanOrEqual(0.2);
+      expect(value).toBeLessThanOrEqual(3);
+    }
+  });
+});
+
+describe('unitRevenue', () => {
+  it('makes shops depend on footfall far more than storage', () => {
+    const quiet = { footTraffic: 0.4 };
+    const busy = { footTraffic: 2.5 };
+
+    const shopSwing =
+      unitRevenue({ areaSqm: 100, use: 'shop', ...busy }) /
+      unitRevenue({ areaSqm: 100, use: 'shop', ...quiet });
+    const storageSwing =
+      unitRevenue({ areaSqm: 100, use: 'storage', ...busy }) /
+      unitRevenue({ areaSqm: 100, use: 'storage', ...quiet });
+
+    expect(shopSwing).toBeGreaterThan(storageSwing);
+  });
+
+  it('still earns something on a dead street', () => {
+    expect(unitRevenue({ areaSqm: 100, use: 'shop', footTraffic: 0 })).toBeGreaterThan(0);
+  });
+
+  it('scales with area', () => {
+    const small = unitRevenue({ areaSqm: 50, use: 'office', footTraffic: 1 });
+    const large = unitRevenue({ areaSqm: 100, use: 'office', footTraffic: 1 });
+    expect(large).toBeCloseTo(small * 2, 1);
+  });
+});
+
+describe('appraiseBuilding', () => {
+  it('values a let building above the sum of its empty rooms', () => {
+    const empty = appraiseBuilding({ unitValues: [1000, 1000], unitRevenues: [0, 0] });
+    const let_ = appraiseBuilding({ unitValues: [1000, 1000], unitRevenues: [5, 5] });
+    expect(let_).toBeGreaterThan(empty);
+  });
+
+  it('falls back to bricks alone with no income', () => {
+    expect(appraiseBuilding({ unitValues: [1500, 500], unitRevenues: [] })).toBe(2000);
   });
 });

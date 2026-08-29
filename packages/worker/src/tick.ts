@@ -1,12 +1,15 @@
 import { sql } from 'kysely';
 import type { Db } from '@wf/db';
 import { DEFAULT_PRICING, accrueInterest, nextPrice, priceIndex } from '@wf/engine';
+import { refreshBuildingEconomics, runRevenueTick } from './revenue.js';
 
 export interface TickResult {
   itemsRepriced: number;
   runsCompleted: number;
   loansAccrued: number;
   buildingsCompleted: number;
+  /** Units that paid their owner this tick. */
+  unitsPaid: number;
   priceIndex: number;
 }
 
@@ -211,12 +214,17 @@ export async function runEconomyTick(db: Db): Promise<TickResult> {
     const { repriced, index } = await runPriceTick(db);
     const loansAccrued = await runInterestTick(db);
     const buildingsCompleted = await runConstructionTick(db);
+    // Economics are refreshed before paying out, so a building finished
+    // this same tick earns from its first cycle rather than sitting idle.
+    await refreshBuildingEconomics(db);
+    const revenue = await runRevenueTick(db);
 
     const result: TickResult = {
       itemsRepriced: repriced,
       runsCompleted,
       loansAccrued,
       buildingsCompleted,
+      unitsPaid: revenue.unitsPaid,
       priceIndex: index,
     };
 

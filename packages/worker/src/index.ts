@@ -14,3 +14,5 @@ export {
 export { fetchRoadNetwork, type OsmOptions, type RoadLine } from './seed/osm.js';
 export { polygonizeBlocks, type Block, type PolygonizeOptions } from './seed/blocks.js';
 
+export { refreshBuildingEconomics, runRevenueTick, type RevenueResult } from './revenue.js';
+export { seedNpcLandlords, type NpcSeedSummary } from './seed/landlords.js';

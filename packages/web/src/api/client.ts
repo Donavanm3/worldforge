@@ -233,6 +233,15 @@ export const api = {
   myBuildings: () => request<BuildingSummary[]>('/buildings/mine'),
   buildingMarket: () => request<BuildingSummary[]>('/buildings/market'),
   building: (id: string) => request<BuildingDetail>(`/buildings/${id}`),
+  deedMarket: () => request<BuildingSummary[]>('/buildings/deeds'),
+  listDeed: (id: string, price: string) =>
+    request<void>(`/buildings/${id}/list`, { method: 'POST', body: { price } }),
+  unlistDeed: (id: string) => request<void>(`/buildings/${id}/list`, { method: 'DELETE' }),
+  buyDeed: (id: string) =>
+    request<{ buildingId: string; pricePaid: string; unitsTransferred: number; balance: string }>(
+      `/buildings/${id}/buy`,
+      { method: 'POST' },
+    ),
   myUnits: () => request<UnitSummary[]>('/units/mine'),
   listUnit: (id: string, price: string) =>
     request<void>(`/units/${id}/list`, { method: 'POST', body: { price } }),

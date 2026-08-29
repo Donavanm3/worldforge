@@ -328,6 +328,13 @@ export interface BuildingSummary {
   cityName: string | null;
   unitCount: number;
   unitsForSale: number;
+  forSale: boolean;
+  salePrice: string | null;
+  appraisedValue: string;
+  /** Passing trade at this site, as a multiplier around 1. */
+  footTraffic: number;
+  /** Set when an NPC landlord holds the deed rather than a player. */
+  npcOwnerName: string | null;
 }
 
 export interface UnitSummary {
@@ -342,6 +349,8 @@ export interface UnitSummary {
   marketValue: string;
   forSale: boolean;
   salePrice: string | null;
+  revenuePerTick: string;
+  totalEarned: string;
 }
 
 export interface BuildingDetail extends BuildingSummary {

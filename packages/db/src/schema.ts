@@ -447,6 +447,13 @@ export interface BuildingsTable {
   footprint_sqm: Numeric;
   construction_cost: Numeric;
   completes_at: Timestamp;
+  /** The deed trades separately from the units inside. */
+  for_sale: Generated<boolean>;
+  sale_price: Numeric | null;
+  appraised_value: Generated<Numeric>;
+  /** Passing trade, from street frontage. Drives unit revenue. */
+  foot_traffic: Generated<Numeric>;
+  npc_owner_name: string | null;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }
@@ -473,6 +480,8 @@ export interface BuildingUnitsTable {
   market_value: Numeric;
   for_sale: Generated<boolean>;
   sale_price: Numeric | null;
+  revenue_per_tick: Generated<Numeric>;
+  total_earned: Generated<Numeric>;
   created_at: Generated<Timestamp>;
   updated_at: Generated<Timestamp>;
 }

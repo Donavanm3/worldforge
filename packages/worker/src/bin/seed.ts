@@ -2,6 +2,7 @@ import { sql } from 'kysely';
 import { createDb } from '@wf/db';
 import { seedCatalog } from '../seed/catalog.js';
 import { seedWorld } from '../seed/world.js';
+import { seedNpcLandlords } from '../seed/landlords.js';
 
 /** CLI entrypoint: `pnpm seed`. */
 async function main(): Promise<void> {
@@ -16,6 +17,9 @@ async function main(): Promise<void> {
   // Opt in, because it makes tens of requests to a volunteer OSM service and
   // turns a two-second seed into a several-minute one.
   const realBlocks = process.argv.includes('--real-blocks');
+  // Safe to re-run on a live world: it only fills parcels that are still
+  // unowned and unbuilt, so it can top up newly surveyed areas.
+  const landlords = process.argv.includes('--landlords');
 
   const db = createDb({ connectionString });
   try {
@@ -58,6 +62,16 @@ async function main(): Promise<void> {
           `the rest fell back to the grid.`,
       );
     }
+    if (landlords) {
+      console.log('Placing NPC landlords...');
+      const npcs = await seedNpcLandlords(db, {
+        onProgress: (message) => console.log(message),
+      });
+      console.log(
+        `  ${npcs.buildings} buildings, ${npcs.units} units, ${npcs.skipped} parcels skipped`,
+      );
+    }
+
     console.log('Seed complete.');
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);

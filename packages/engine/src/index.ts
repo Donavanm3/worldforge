@@ -40,12 +40,18 @@ export {
 
 export {
   BuildingPlanError,
+  DEED_REVENUE_SHARE,
+  appraiseBuilding,
+  footTraffic,
   planBuilding,
+  unitRevenue,
   unitValue,
   type BuildingPlan,
   type BuildingPlanInput,
   type PlannedFloor,
   type PlannedUnit,
+  type AppraisalInput,
+  type FootTrafficInput,
+  type UnitRevenueInput,
   type UnitValueInput,
 } from './building.js';
-

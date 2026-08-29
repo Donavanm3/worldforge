@@ -33,6 +33,13 @@ export interface BuildingSummary {
   cityName: string | null;
   unitCount: number;
   unitsForSale: number;
+  forSale: boolean;
+  salePrice: string | null;
+  appraisedValue: string;
+  /** Passing trade at this site, as a multiplier around 1. */
+  footTraffic: number;
+  /** Set when the building belongs to an NPC landlord, not a player. */
+  npcOwnerName: string | null;
 }
 
 export interface UnitSummary {
@@ -47,6 +54,8 @@ export interface UnitSummary {
   marketValue: string;
   forSale: boolean;
   salePrice: string | null;
+  revenuePerTick: string;
+  totalEarned: string;
 }
 
 export interface BuildingDetail extends BuildingSummary {
@@ -283,6 +292,11 @@ export async function startConstruction(
 
 const summarySelect = [
   'buildings.id',
+  'buildings.for_sale',
+  'buildings.sale_price',
+  'buildings.appraised_value',
+  'buildings.foot_traffic',
+  'buildings.npc_owner_name',
   'buildings.parcel_id',
   'buildings.owner_id',
   'buildings.name',
@@ -310,6 +324,11 @@ function toSummary(row: Record<string, unknown>): BuildingSummary {
     cityName: (row['city_name'] as string | null) ?? null,
     unitCount: Number(row['unit_count'] ?? 0),
     unitsForSale: Number(row['units_for_sale'] ?? 0),
+    forSale: Boolean(row['for_sale']),
+    salePrice: row['sale_price'] === null ? null : String(row['sale_price']),
+    appraisedValue: String(row['appraised_value'] ?? '0'),
+    footTraffic: Number(row['foot_traffic'] ?? 1),
+    npcOwnerName: (row['npc_owner_name'] as string | null) ?? null,
   };
 }
 
@@ -399,6 +418,8 @@ export async function getBuilding(db: Db, buildingId: string): Promise<BuildingD
       'building_units.market_value',
       'building_units.for_sale',
       'building_units.sale_price',
+      'building_units.revenue_per_tick',
+      'building_units.total_earned',
       'building_floors.level',
       'users.username as owner_name',
     ])
@@ -433,6 +454,8 @@ export async function getBuilding(db: Db, buildingId: string): Promise<BuildingD
           marketValue: String(unit.market_value),
           forSale: unit.for_sale,
           salePrice: unit.sale_price === null ? null : String(unit.sale_price),
+          revenuePerTick: String(unit.revenue_per_tick),
+          totalEarned: String(unit.total_earned),
         })),
     })),
   };
@@ -454,6 +477,8 @@ export async function listMyUnits(db: Db, userId: string): Promise<UnitSummary[]
       'building_units.market_value',
       'building_units.for_sale',
       'building_units.sale_price',
+      'building_units.revenue_per_tick',
+      'building_units.total_earned',
       'building_floors.level',
       'users.username as owner_name',
     ])
@@ -473,6 +498,8 @@ export async function listMyUnits(db: Db, userId: string): Promise<UnitSummary[]
     marketValue: String(unit.market_value),
     forSale: unit.for_sale,
     salePrice: unit.sale_price === null ? null : String(unit.sale_price),
+    revenuePerTick: String(unit.revenue_per_tick),
+    totalEarned: String(unit.total_earned),
   }));
 }
 
@@ -611,4 +638,178 @@ export async function buyUnit(
 
     return { unitId, pricePaid: String(price), balance: String(profile.balance) };
   });
+}
+
+// --- Deeds (spec 17) --------------------------------------------------------
+
+/** Offers the whole building for sale, units and income stream included. */
+export async function listDeed(
+  db: Db,
+  userId: string,
+  buildingId: string,
+  price: string,
+): Promise<void> {
+  const result = await db
+    .updateTable('buildings')
+    .set({ for_sale: true, sale_price: sql`${price}::numeric`, updated_at: sql`now()` })
+    .where('id', '=', buildingId)
+    .where('owner_id', '=', userId)
+    .where('status', '=', 'complete')
+    .executeTakeFirst();
+
+  if (result.numUpdatedRows !== 1n) {
+    throw new NotFoundError('Building not found, not yours, or still under construction');
+  }
+}
+
+export async function unlistDeed(db: Db, userId: string, buildingId: string): Promise<void> {
+  const result = await db
+    .updateTable('buildings')
+    .set({ for_sale: false, sale_price: null, updated_at: sql`now()` })
+    .where('id', '=', buildingId)
+    .where('owner_id', '=', userId)
+    .executeTakeFirst();
+
+  if (result.numUpdatedRows !== 1n) {
+    throw new NotFoundError('Building not found, or you do not own it');
+  }
+}
+
+export interface DeedPurchaseResult {
+  buildingId: string;
+  pricePaid: string;
+  unitsTransferred: number;
+  balance: string;
+}
+
+/**
+ * Buys a building's deed.
+ *
+ * Units already sold to other players stay with them — that is the whole point
+ * of the split. What transfers is the deed, the unsold rooms, and the right to
+ * a share of what every unit inside earns from now on.
+ */
+export async function buyDeed(
+  db: Db,
+  buyerId: string,
+  buildingId: string,
+): Promise<DeedPurchaseResult> {
+  return db.transaction().execute(async (trx) => {
+    const building = await trx
+      .selectFrom('buildings')
+      .select(['id', 'owner_id', 'for_sale', 'sale_price', 'name', 'npc_owner_name'])
+      .where('id', '=', buildingId)
+      .forUpdate()
+      .executeTakeFirst();
+
+    if (!building) throw new NotFoundError('Building not found');
+    if (!building.for_sale || building.sale_price === null) {
+      throw new ConflictError('This building is not for sale');
+    }
+    if (building.owner_id === buyerId) throw new ConflictError('You already own this building');
+
+    const price = building.sale_price;
+
+    const debit = await trx
+      .updateTable('profiles')
+      .set({ balance: sql`balance - ${price}::numeric` })
+      .where('user_id', '=', buyerId)
+      .where(sql<boolean>`balance >= ${price}::numeric`)
+      .executeTakeFirst();
+
+    if (debit.numUpdatedRows !== 1n) {
+      throw new ConflictError('Insufficient funds for this purchase');
+    }
+
+    // An NPC landlord is not a real account, so its sale proceeds leave the
+    // economy rather than crediting a profile that does not exist.
+    if (!building.npc_owner_name) {
+      await trx
+        .updateTable('profiles')
+        .set({ balance: sql`balance + ${price}::numeric` })
+        .where('user_id', '=', building.owner_id)
+        .execute();
+    }
+
+    // Only the seller's own rooms move with the deed. Everyone else keeps theirs.
+    const transferred = await trx
+      .updateTable('building_units')
+      .set({ owner_id: buyerId, for_sale: false, sale_price: null, updated_at: sql`now()` })
+      .where('building_id', '=', buildingId)
+      .where('owner_id', '=', building.owner_id)
+      .executeTakeFirst();
+
+    await trx
+      .updateTable('buildings')
+      .set({
+        owner_id: buyerId,
+        for_sale: false,
+        sale_price: null,
+        npc_owner_name: null,
+        updated_at: sql`now()`,
+      })
+      .where('id', '=', buildingId)
+      .execute();
+
+    await trx
+      .insertInto('transactions')
+      .values({
+        sender_user_id: buyerId,
+        receiver_user_id: building.npc_owner_name ? null : building.owner_id,
+        amount: price,
+        reason: 'deed_purchase',
+        metadata: JSON.stringify({ buildingId }),
+      })
+      .execute();
+
+    if (!building.npc_owner_name) {
+      await trx
+        .insertInto('notifications')
+        .values({
+          user_id: building.owner_id,
+          kind: 'deed_sold',
+          title: 'Your building sold',
+          body: `${building.name} sold for ${price}.`,
+        })
+        .execute();
+    }
+
+    const profile = await trx
+      .selectFrom('profiles')
+      .select('balance')
+      .where('user_id', '=', buyerId)
+      .executeTakeFirstOrThrow();
+
+    return {
+      buildingId,
+      pricePaid: String(price),
+      unitsTransferred: Number(transferred.numUpdatedRows),
+      balance: String(profile.balance),
+    };
+  });
+}
+
+/** Buildings whose deeds are on the market, including NPC landlords'. */
+export async function listDeedsForSale(db: Db): Promise<BuildingSummary[]> {
+  const rows = await db
+    .selectFrom('buildings')
+    .innerJoin('land_parcels', 'land_parcels.id', 'buildings.parcel_id')
+    .leftJoin('cities', 'cities.id', 'land_parcels.city_id')
+    .leftJoin('users', 'users.id', 'buildings.owner_id')
+    .leftJoin('building_units', 'building_units.building_id', 'buildings.id')
+    .select([...summarySelect])
+    .select(['cities.name as city_name', 'users.username as owner_name'])
+    .select(sql<string>`count(building_units.id)`.as('unit_count'))
+    .select(
+      sql<string>`count(building_units.id) filter (where building_units.for_sale)`.as(
+        'units_for_sale',
+      ),
+    )
+    .where('buildings.for_sale', '=', true)
+    .groupBy(['buildings.id', 'cities.name', 'users.username'])
+    .orderBy('buildings.sale_price')
+    .limit(100)
+    .execute();
+
+  return rows.map((row) => toSummary(row as never));
 }

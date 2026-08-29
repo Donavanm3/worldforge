@@ -3,14 +3,18 @@ import { z } from 'zod';
 import { BUILDING_TYPES, ValidationError, isValidAmount } from '@wf/shared';
 import { requireAuth, requireWorldAccess } from '../auth/guards.js';
 import {
+  buyDeed,
   buyUnit,
   getBuilding,
   listBuildingsWithUnitsForSale,
+  listDeed,
+  listDeedsForSale,
   listMyBuildings,
   listMyUnits,
   listUnit,
   quoteBuilding,
   startConstruction,
+  unlistDeed,
   unlistUnit,
 } from '../buildings/service.js';
 
@@ -68,6 +72,27 @@ export async function buildingRoutes(app: FastifyInstance): Promise<void> {
 
   /** Buildings with units on the open market. */
   app.get('/buildings/market', async () => listBuildingsWithUnitsForSale(app.db));
+
+  /** Deeds on the market — whole buildings, NPC landlords included. */
+  app.get('/buildings/deeds', async () => listDeedsForSale(app.db));
+
+  app.post('/buildings/:buildingId/list', async (request, reply) => {
+    const parsed = listingSchema.safeParse(request.body);
+    if (!parsed.success || !isValidAmount(parsed.data.price, 'WFD')) {
+      throw new ValidationError('A listing needs a valid price');
+    }
+    await listDeed(app.db, request.user!.id, idOf(request, 'buildingId'), parsed.data.price);
+    return reply.code(204).send();
+  });
+
+  app.delete('/buildings/:buildingId/list', async (request, reply) => {
+    await unlistDeed(app.db, request.user!.id, idOf(request, 'buildingId'));
+    return reply.code(204).send();
+  });
+
+  app.post('/buildings/:buildingId/buy', async (request) =>
+    buyDeed(app.db, request.user!.id, idOf(request, 'buildingId')),
+  );
 
   app.get('/buildings/:buildingId', async (request) =>
     getBuilding(app.db, idOf(request, 'buildingId')),

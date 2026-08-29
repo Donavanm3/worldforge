@@ -345,6 +345,173 @@ describe.runIf(shouldRun)('buildings (integration)', () => {
     expect(second.statusCode).toBe(409);
   });
 
+  describe('deeds', () => {
+    /** Lists the deed, which requires the building to be finished first. */
+    async function listDeed(buildingId: string, price: string) {
+      await finishConstruction(buildingId);
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/buildings/${buildingId}/list`,
+        headers: auth(aliceToken),
+        payload: { price },
+      });
+      if (response.statusCode !== 204) {
+        throw new Error(`listDeed: ${response.statusCode} ${response.body}`);
+      }
+    }
+
+    it('will not list a deed while the building is going up', async () => {
+      const { buildingId } = await build();
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/buildings/${buildingId}/list`,
+        headers: auth(aliceToken),
+        payload: { price: '100000.00' },
+      });
+      expect(response.statusCode).toBe(404);
+    });
+
+    it('moves the deed and the seller rooms, and conserves money', async () => {
+      const { buildingId, unitCount } = await build();
+      await listDeed(buildingId, '90000.00');
+
+      const aliceBefore = await balanceOf(aliceId);
+      const bobBefore = await balanceOf(bobId);
+
+      const bought = await app.inject({
+        method: 'POST',
+        url: `/api/buildings/${buildingId}/buy`,
+        headers: auth(bobToken),
+      });
+
+      expect(bought.statusCode).toBe(200);
+      expect(bought.json().unitsTransferred).toBe(unitCount);
+      expect(await balanceOf(bobId)).toBeCloseTo(bobBefore - 90000, 2);
+      expect(await balanceOf(aliceId)).toBeCloseTo(aliceBefore + 90000, 2);
+    });
+
+    it('leaves a room already sold to someone else with its owner', async () => {
+      const { buildingId } = await build();
+      await finishConstruction(buildingId);
+
+      // Bob buys one room before the deed changes hands.
+      const detail = await app.inject({
+        method: 'GET',
+        url: `/api/buildings/${buildingId}`,
+        headers: auth(aliceToken),
+      });
+      const room = detail.json().floorPlan[0].units[0];
+
+      await app.inject({
+        method: 'POST',
+        url: `/api/units/${room.id}/list`,
+        headers: auth(aliceToken),
+        payload: { price: '1000.00' },
+      });
+      await app.inject({
+        method: 'POST',
+        url: `/api/units/${room.id}/buy`,
+        headers: auth(bobToken),
+      });
+
+      // Carol then buys the deed out from under both of them.
+      const carol = await register(`carol${Date.now()}`);
+      await setBalance(carol.user.id, '5000000.00');
+      await app.inject({
+        method: 'POST',
+        url: `/api/buildings/${buildingId}/list`,
+        headers: auth(aliceToken),
+        payload: { price: '50000.00' },
+      });
+      const bought = await app.inject({
+        method: 'POST',
+        url: `/api/buildings/${buildingId}/buy`,
+        headers: auth(carol.accessToken),
+      });
+      expect(bought.statusCode).toBe(200);
+
+      // Bob keeps his room. This is the whole point of the deed/room split.
+      const after = await app.inject({
+        method: 'GET',
+        url: `/api/buildings/${buildingId}`,
+        headers: auth(bobToken),
+      });
+      const sameRoom = after
+        .json()
+        .floorPlan.flatMap(
+          (floor: { units: Array<{ id: string; ownerId: string }> }) => floor.units,
+        )
+        .find((unit: { id: string }) => unit.id === room.id);
+
+      expect(sameRoom.ownerId).toBe(bobId);
+    });
+
+    it('refuses a deed the buyer cannot afford, leaving ownership alone', async () => {
+      const { buildingId } = await build();
+      await listDeed(buildingId, '90000.00');
+      await setBalance(bobId, '5.00');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/buildings/${buildingId}/buy`,
+        headers: auth(bobToken),
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(await balanceOf(bobId)).toBe(5);
+
+      const detail = await app.inject({
+        method: 'GET',
+        url: `/api/buildings/${buildingId}`,
+        headers: auth(aliceToken),
+      });
+      expect(detail.json().ownerId).toBe(aliceId);
+    });
+
+    it('refuses to sell the same deed twice', async () => {
+      const { buildingId } = await build();
+      await listDeed(buildingId, '1000.00');
+
+      await app.inject({
+        method: 'POST',
+        url: `/api/buildings/${buildingId}/buy`,
+        headers: auth(bobToken),
+      });
+      const second = await app.inject({
+        method: 'POST',
+        url: `/api/buildings/${buildingId}/buy`,
+        headers: auth(bobToken),
+      });
+
+      expect(second.statusCode).toBe(409);
+    });
+
+    it('shows a listed deed on the market and drops it when unlisted', async () => {
+      const { buildingId } = await build();
+      await listDeed(buildingId, '77000.00');
+
+      const listed = await app.inject({
+        method: 'GET',
+        url: '/api/buildings/deeds',
+        headers: auth(bobToken),
+      });
+      expect(listed.json().map((b: { id: string }) => b.id)).toContain(buildingId);
+
+      await app.inject({
+        method: 'DELETE',
+        url: `/api/buildings/${buildingId}/list`,
+        headers: auth(aliceToken),
+      });
+
+      const after = await app.inject({
+        method: 'GET',
+        url: '/api/buildings/deeds',
+        headers: auth(bobToken),
+      });
+      expect(after.json().map((b: { id: string }) => b.id)).not.toContain(buildingId);
+    });
+  });
+
   it('lists a player their own buildings', async () => {
     await build('Alice Plaza');
     const response = await app.inject({

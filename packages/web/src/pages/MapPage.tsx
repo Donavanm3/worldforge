@@ -30,6 +30,40 @@ const STYLE: maplibregl.StyleSpecification = {
   layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
 };
 
+/**
+ * Compact price for a map chip: 12400 reads as 12.4k.
+ *
+ * Full currency formatting is too wide to sit on a small parcel, and a chip
+ * that overflows its plot is worse than a rounded number.
+ */
+function chipPrice(value: string): string {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '';
+  if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 1_000) return `$${Math.round(amount / 100) / 10}k`;
+  return `$${Math.round(amount)}`;
+}
+
+/**
+ * A point to hang a parcel's price chip on.
+ *
+ * The average of the ring's vertices, not a true centroid: it is one pass over
+ * a handful of points, and for the small convex-ish blocks parcels actually are
+ * the difference is a metre or two.
+ */
+function centroidOf(geometry: unknown): [number, number] {
+  const ring = (geometry as { coordinates?: number[][][] })?.coordinates?.[0];
+  if (!ring || ring.length === 0) return [0, 0];
+
+  let lng = 0;
+  let lat = 0;
+  for (const point of ring) {
+    lng += point[0]!;
+    lat += point[1]!;
+  }
+  return [lng / ring.length, lat / ring.length];
+}
+
 export function MapPage() {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
@@ -41,6 +75,7 @@ export function MapPage() {
   const [building, setBuilding] = useState(false);
   const [empty, setEmpty] = useState(false);
   const [claiming, setClaiming] = useState(false);
+  const priceChips = useRef<maplibregl.Marker[]>([]);
   const { me, refresh } = useAuth();
 
   const loadParcels = useCallback(async () => {
@@ -64,6 +99,33 @@ export function MapPage() {
       (instance.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined)?.setData(
         collection as never,
       );
+
+      // Chips are rebuilt wholesale rather than diffed: the parcel set changes
+      // completely on every pan, so tracking individual markers would cost more
+      // than recreating a few hundred nodes.
+      for (const marker of priceChips.current) marker.remove();
+      priceChips.current = [];
+
+      if (instance.getZoom() >= 15) {
+        for (const feature of collection.features) {
+          const price = feature.properties.salePrice ?? feature.properties.marketValue;
+          const label = chipPrice(price);
+          if (!label) continue;
+
+          const element = document.createElement('div');
+          element.textContent = label;
+          element.className =
+            'pointer-events-none select-none rounded bg-ink-900/85 px-1.5 py-0.5 ' +
+            'text-[11px] font-semibold leading-none text-slate-100 shadow';
+          if (feature.properties.forSale) element.classList.add('text-gain');
+
+          priceChips.current.push(
+            new maplibregl.Marker({ element })
+              .setLngLat(centroidOf(feature.geometry))
+              .addTo(instance),
+          );
+        }
+      }
     } catch (caught) {
       // A too-large viewport is expected while zoomed out, not a failure.
       if (caught instanceof ApiError && caught.status === 400) {
@@ -139,6 +201,8 @@ export function MapPage() {
     instance.on('moveend', () => void loadParcels());
 
     return () => {
+      for (const marker of priceChips.current) marker.remove();
+      priceChips.current = [];
       instance.remove();
       map.current = null;
     };
